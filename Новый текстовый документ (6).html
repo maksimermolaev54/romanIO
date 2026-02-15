@@ -490,6 +490,7 @@ input[type="file"] {
     coopPlayers: {},
     coopInput: { x: 0, y: 0 },
     coopSnapshotTimer: 0,
+    coopInputSendTimer: 0,
     network: {
       ws: null,
       connected: false,
@@ -774,16 +775,23 @@ input[type="file"] {
 
     if (msg.type === "snapshot" && isCoopClient()) {
       state.score = msg.score || 0;
-      state.pellets = Array.isArray(msg.pellets) ? msg.pellets : [];
-      state.bots = Array.isArray(msg.bots) ? msg.bots : [];
-      state.powerups = Array.isArray(msg.powerups) ? msg.powerups : [];
+      if (Array.isArray(msg.pellets)) state.pellets = msg.pellets;
+      if (Array.isArray(msg.bots)) state.bots = msg.bots;
+      if (Array.isArray(msg.powerups)) state.powerups = msg.powerups;
 
       const players = msg.players || {};
       const me = players[state.network.id];
       if (me) {
-        state.player = {
-          x: me.x, y: me.y, radius: me.radius, vx: me.vx || 0, vy: me.vy || 0, baseSpeed: 210
-        };
+        if (!state.player) {
+          state.player = { x: me.x, y: me.y, radius: me.radius, vx: me.vx || 0, vy: me.vy || 0, baseSpeed: 210 };
+        } else {
+          // Client-side smoothing: don't teleport each snapshot.
+          state.player.x += (me.x - state.player.x) * 0.35;
+          state.player.y += (me.y - state.player.y) * 0.35;
+          state.player.vx = me.vx || 0;
+          state.player.vy = me.vy || 0;
+          state.player.radius = me.radius;
+        }
       }
 
       const nextCoop = {};
@@ -869,6 +877,7 @@ input[type="file"] {
     state.mouse.active = false;
     state.coopPlayers = {};
     state.coopSnapshotTimer = 0;
+    state.coopInputSendTimer = 0;
 
     if (!isCoopMode() || isCoopHost()) {
       for (let i = 0; i < mode.startBots; i++) {
@@ -1032,12 +1041,13 @@ input[type="file"] {
     state.coopInput.x = mx;
     state.coopInput.y = my;
 
-    if (isCoopClient()) {
-      return;
-    }
-
     const speedFactor = state.boostTimer > 0 ? 1.28 : 1;
     applyEntityPhysics(player, mx, my, dt, speedFactor);
+
+    if (isCoopClient()) {
+      // Client prediction keeps movement responsive on latency.
+      return;
+    }
   }
 
   function moveCoopPlayersHost(dt) {
@@ -1203,7 +1213,7 @@ input[type="file"] {
   function sendCoopSnapshot(dt) {
     if (!isCoopHost()) return;
     state.coopSnapshotTimer += dt;
-    if (state.coopSnapshotTimer < 0.07) return;
+    if (state.coopSnapshotTimer < 0.12) return;
     state.coopSnapshotTimer = 0;
 
     const players = {};
@@ -1224,6 +1234,7 @@ input[type="file"] {
     networkSend({
       type: "snapshot",
       score: state.score,
+      // Send heavy lists less frequently to reduce lag on weak connections.
       pellets: state.pellets,
       bots: state.bots,
       powerups: state.powerups,
@@ -1475,12 +1486,16 @@ input[type="file"] {
           modeLogic(dt);
           sendCoopSnapshot(dt);
         } else if (isCoopClient()) {
-          networkSend({
-            type: "input",
-            x: state.coopInput.x,
-            y: state.coopInput.y,
-            name: state.network.name
-          });
+          state.coopInputSendTimer += dt;
+          if (state.coopInputSendTimer >= 0.033) {
+            state.coopInputSendTimer = 0;
+            networkSend({
+              type: "input",
+              x: state.coopInput.x,
+              y: state.coopInput.y,
+              name: state.network.name
+            });
+          }
         }
       } else {
         moveBots(dt);
