@@ -1,0 +1,14 @@
+{
+  "name": "romanio-coop-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node.js co-op WebSocket server for Roman.io",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "restart": "node restart.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

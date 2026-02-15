@@ -348,9 +348,9 @@ input[type="text"] {
         <div class="mode-title">Пивная вечеринка</div>
         <div class="mode-desc">Еда на карте заменяется на `nepivo.png`. Весёлый визуальный режим.</div>
       </div>
-      <div class="mode-card disabled" data-mode="coop_online">
+      <div class="mode-card" data-mode="coop_online">
         <div class="mode-title">Кооп онлайн</div>
-        <div class="mode-desc">В доработке</div>
+        <div class="mode-desc">Онлайн-режим через локальный/сетевой WebSocket сервер.</div>
       </div>
     </div>
 
@@ -362,7 +362,7 @@ input[type="text"] {
     <div class="row" id="coopControls" style="display:none; align-items:end;">
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopUrl">WS URL</label>
-        <input id="coopUrl" type="text" value="ws://192.168.2.3:8765" readonly style="min-width:180px; opacity:0.85; cursor:not-allowed;">
+        <input id="coopUrl" type="text" value="ws://localhost:8765" style="min-width:180px;">
       </div>
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopRoom">Комната</label>
@@ -452,7 +452,7 @@ input[type="text"] {
   const statusLine = document.getElementById("statusLine");
   const gameOverTitle = document.getElementById("gameOverTitle");
   const gameOverText = document.getElementById("gameOverText");
-  const COOP_WS_URL = "ws://192.168.2.3:8765";
+  const COOP_WS_URL = "ws://localhost:8765";
 
   const MODES = {
     classic: {
@@ -719,15 +719,11 @@ input[type="text"] {
   }
 
   function selectMode(mode) {
-    if (mode === "coop_online") {
-      alert("Режим кооп временно в доработке.");
-      return;
-    }
     state.selectedMode = mode;
     modeCards.forEach((card) => {
       card.classList.toggle("active", card.dataset.mode === mode);
     });
-    const showCoop = false;
+    const showCoop = mode === "coop_online";
     coopControls.style.display = showCoop ? "flex" : "none";
     coopStatusRow.style.display = showCoop ? "flex" : "none";
     updateHud();
@@ -864,8 +860,8 @@ input[type="text"] {
 
   function connectCoop() {
     disconnectCoop();
-    state.network.url = COOP_WS_URL;
-    coopUrlInput.value = COOP_WS_URL;
+    state.network.url = coopUrlInput.value.trim() || COOP_WS_URL;
+    coopUrlInput.value = state.network.url;
     state.network.room = coopRoomInput.value.trim() || "party";
     state.network.name = coopNameInput.value.trim() || "Player";
 
@@ -906,10 +902,6 @@ input[type="text"] {
 
   function beginGame() {
     const mode = MODES[state.selectedMode];
-    if (state.selectedMode === "coop_online") {
-      alert("Режим кооп временно в доработке.");
-      return;
-    }
     if (isCoopMode() && !state.network.connected) {
       alert("Сначала подключись к кооп-серверу.");
       return;
