@@ -185,6 +185,11 @@ h1 {
   transform: translateY(-2px);
 }
 
+.mode-card.disabled {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
 .mode-title {
   font-size: 15px;
   font-weight: 700;
@@ -343,9 +348,9 @@ input[type="text"] {
         <div class="mode-title">Пивная вечеринка</div>
         <div class="mode-desc">Еда на карте заменяется на `nepivo.png`. Весёлый визуальный режим.</div>
       </div>
-      <div class="mode-card" data-mode="coop_online">
+      <div class="mode-card disabled" data-mode="coop_online">
         <div class="mode-title">Кооп онлайн</div>
-        <div class="mode-desc">Игра с друзьями на разных телефонах/ПК через комнату.</div>
+        <div class="mode-desc">В доработке</div>
       </div>
     </div>
 
@@ -466,7 +471,7 @@ input[type="text"] {
       botBaseSpeed: 116,
       scoreFromTime: true,
       duration: null,
-      waveEvery: 12
+      waveEvery: 8
     },
     time_attack: {
       label: "Тайм-атака",
@@ -714,11 +719,15 @@ input[type="text"] {
   }
 
   function selectMode(mode) {
+    if (mode === "coop_online") {
+      alert("Режим кооп временно в доработке.");
+      return;
+    }
     state.selectedMode = mode;
     modeCards.forEach((card) => {
       card.classList.toggle("active", card.dataset.mode === mode);
     });
-    const showCoop = mode === "coop_online";
+    const showCoop = false;
     coopControls.style.display = showCoop ? "flex" : "none";
     coopStatusRow.style.display = showCoop ? "flex" : "none";
     updateHud();
@@ -897,6 +906,10 @@ input[type="text"] {
 
   function beginGame() {
     const mode = MODES[state.selectedMode];
+    if (state.selectedMode === "coop_online") {
+      alert("Режим кооп временно в доработке.");
+      return;
+    }
     if (isCoopMode() && !state.network.connected) {
       alert("Сначала подключись к кооп-серверу.");
       return;
@@ -1163,7 +1176,7 @@ input[type="text"] {
     for (let i = state.pellets.length - 1; i >= 0; i--) {
       const pellet = state.pellets[i];
       if (distance(player, pellet) < player.radius + pellet.radius) {
-        player.radius += 0.34;
+        player.radius += 0.75;
         state.score += pellet.value;
         state.pellets.splice(i, 1);
       }
@@ -1173,7 +1186,7 @@ input[type="text"] {
       for (let i = state.pellets.length - 1; i >= 0; i--) {
         const pellet = state.pellets[i];
         if (distance(bot, pellet) < bot.radius + pellet.radius) {
-          bot.radius += 0.22;
+          bot.radius += 0.55;
           state.pellets.splice(i, 1);
         }
       }
@@ -1189,7 +1202,7 @@ input[type="text"] {
       for (let i = state.pellets.length - 1; i >= 0; i--) {
         const pellet = state.pellets[i];
         if (distance(ally, pellet) < ally.radius + pellet.radius) {
-          ally.radius += 0.34;
+          ally.radius += 0.75;
           state.score += pellet.value;
           state.pellets.splice(i, 1);
         }
@@ -1328,6 +1341,10 @@ input[type="text"] {
         spawnBot(3 + Math.random() * 7);
         state.score += 40;
       }
+    }
+
+    if (state.selectedMode === "survival" && state.bots.length < 2) {
+      spawnBot(2 + Math.random() * 5);
     }
 
     if (mode.duration !== null) {
