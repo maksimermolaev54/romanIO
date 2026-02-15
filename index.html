@@ -319,7 +319,7 @@ input[type="file"] {
     <div class="row" id="coopControls" style="display:none; align-items:end;">
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopUrl">WS URL</label>
-        <input id="coopUrl" type="text" value="ws://localhost:8765" style="min-width:180px;">
+        <input id="coopUrl" type="text" value="wss://romanio.onrender.com" readonly style="min-width:180px; opacity:0.85; cursor:not-allowed;">
       </div>
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopRoom">Комната</label>
@@ -409,6 +409,7 @@ input[type="file"] {
   const statusLine = document.getElementById("statusLine");
   const gameOverTitle = document.getElementById("gameOverTitle");
   const gameOverText = document.getElementById("gameOverText");
+  const COOP_WS_URL = "wss://romanio.onrender.com";
 
   const MODES = {
     classic: {
@@ -496,7 +497,7 @@ input[type="file"] {
       hostId: null,
       room: "party",
       name: "Player",
-      url: "ws://localhost:8765"
+      url: COOP_WS_URL
     },
     clearBestClickTimer: null,
     aiId: 1,
@@ -799,7 +800,8 @@ input[type="file"] {
 
   function connectCoop() {
     disconnectCoop();
-    state.network.url = coopUrlInput.value.trim() || "ws://localhost:8765";
+    state.network.url = COOP_WS_URL;
+    coopUrlInput.value = COOP_WS_URL;
     state.network.room = coopRoomInput.value.trim() || "party";
     state.network.name = coopNameInput.value.trim() || "Player";
 
