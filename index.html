@@ -1,0 +1,1635 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roman.io Reborn</title>
+<style>
+:root {
+  --bg-a: #0a1626;
+  --bg-b: #112b3c;
+  --bg-c: #1e4f68;
+  --panel: rgba(7, 17, 30, 0.75);
+  --line: rgba(255, 255, 255, 0.12);
+  --text: #e9f6ff;
+  --muted: #a7c0d4;
+  --accent: #4dd7a8;
+  --accent-strong: #31bc8e;
+  --danger: #ff6b6b;
+  --gold: #ffd166;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 20% 15%, #2a7b9b 0%, var(--bg-b) 45%, var(--bg-a) 100%);
+}
+
+canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#hud {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+#joystick {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  z-index: 7;
+  display: none;
+  touch-action: none;
+}
+
+#joystickStick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 58px;
+  height: 58px;
+  margin-left: -29px;
+  margin-top: -29px;
+  border-radius: 50%;
+  background: rgba(126, 240, 204, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  transform: translate(0px, 0px);
+}
+
+.hud-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 14px;
+  min-width: 185px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+}
+
+.hud-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud-value {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+#statusLine {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--gold);
+}
+
+#menu,
+#gameOver {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0.7));
+}
+
+#gameOver {
+  z-index: 6;
+  display: none;
+}
+
+#experimentalMenu {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  display: none;
+  place-items: center;
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.74));
+}
+
+.panel {
+  width: min(92vw, 760px);
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: linear-gradient(150deg, rgba(13, 32, 48, 0.95), rgba(7, 17, 30, 0.9));
+  box-shadow: var(--shadow);
+  padding: 26px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(32px, 6vw, 52px);
+  letter-spacing: 0.03em;
+}
+
+.subtitle {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.menu-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.mode-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s, background 0.2s;
+}
+
+.mode-card.active {
+  border-color: var(--accent);
+  background: rgba(77, 215, 168, 0.12);
+  transform: translateY(-2px);
+}
+
+.mode-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mode-desc {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.row {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+input[type="file"] {
+  max-width: 100%;
+  color: var(--muted);
+}
+
+.btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #082018;
+  background: linear-gradient(135deg, #7ef0cc, #4dd7a8);
+}
+
+.btn:hover {
+  background: linear-gradient(135deg, #a2f6da, #63e0b6);
+}
+
+.btn.alt {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+}
+
+.kb {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: 18px;
+  }
+
+  .hud-card {
+    min-width: 150px;
+  }
+
+  .hud-value {
+    font-size: 18px;
+  }
+
+  #joystick {
+    width: 120px;
+    height: 120px;
+    left: 12px;
+    bottom: 12px;
+  }
+
+  #joystickStick {
+    width: 52px;
+    height: 52px;
+    margin-left: -26px;
+    margin-top: -26px;
+  }
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="joystick"><div id="joystickStick"></div></div>
+
+<div id="hud" aria-live="polite">
+  <div class="hud-card">
+    <div class="hud-label">Очки</div>
+    <div class="hud-value" id="scoreValue">0</div>
+    <div id="statusLine">Статус: ожидание старта</div>
+  </div>
+  <div class="hud-card" style="text-align:right;">
+    <div class="hud-label">Режим / Рекорд</div>
+    <div class="hud-value" id="modeValue">Классика</div>
+    <div id="bestValue" class="hud-label" style="margin-top:6px; color: var(--gold);">Best: 0</div>
+  </div>
+</div>
+
+<div id="menu">
+  <div class="panel">
+    <h1>Roman.io Reborn</h1>
+    <p class="subtitle">Новый интерфейс, новые режимы, новые шансы на выживание.</p>
+
+    <div class="menu-grid" id="modeGrid">
+      <div class="mode-card active" data-mode="classic">
+        <div class="mode-title">Классика</div>
+        <div class="mode-desc">Один умный бот, спокойный старт, классический рост массы.</div>
+      </div>
+      <div class="mode-card" data-mode="survival">
+        <div class="mode-title">Выживание</div>
+        <div class="mode-desc">Новые боты приходят волнами. Чем дольше живёшь, тем выше счёт.</div>
+      </div>
+      <div class="mode-card" data-mode="time_attack">
+        <div class="mode-title">Тайм-атака (60с)</div>
+        <div class="mode-desc">За минуту набери максимум очков. Темп игры заметно выше.</div>
+      </div>
+      <div class="mode-card" data-mode="beer_party">
+        <div class="mode-title">Пивная вечеринка</div>
+        <div class="mode-desc">Еда на карте заменяется на `nepivo.png`. Весёлый визуальный режим.</div>
+      </div>
+      <div class="mode-card" data-mode="coop_online">
+        <div class="mode-title">Кооп онлайн</div>
+        <div class="mode-desc">Игра с друзьями на разных телефонах/ПК через комнату.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <label for="playerImage">Скин игрока:</label>
+      <input type="file" id="playerImage" accept="image/*">
+    </div>
+
+    <div class="row" id="coopControls" style="display:none; align-items:end;">
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label for="coopUrl">WS URL</label>
+        <input id="coopUrl" type="text" value="ws://localhost:8765" style="min-width:180px;">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label for="coopRoom">Комната</label>
+        <input id="coopRoom" type="text" value="party">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label for="coopName">Ник</label>
+        <input id="coopName" type="text" value="Player">
+      </div>
+      <button class="btn alt" id="coopConnect">Подключиться</button>
+      <button class="btn alt" id="coopDisconnect">Отключиться</button>
+    </div>
+    <div class="row" id="coopStatusRow" style="display:none; margin-top:8px;">
+      <span id="coopStatus" class="hud-label">Сеть: не подключено</span>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="playButton">Старт</button>
+      <button class="btn alt" id="clearBest">Сбросить рекорд</button>
+    </div>
+
+    <div class="kb">
+      Управление: мышь или WASD/стрелки. | Q: сбросить массу в еду | Shift: рывок | P: пауза
+    </div>
+  </div>
+</div>
+
+<div id="gameOver">
+  <div class="panel">
+    <h2 id="gameOverTitle">Игра окончена</h2>
+    <p id="gameOverText" class="subtitle" style="margin-top:8px;"></p>
+    <div class="row" style="margin-top:18px;">
+      <button class="btn" id="retryButton">Сыграть снова</button>
+      <button class="btn alt" id="backMenuButton">В меню</button>
+    </div>
+  </div>
+</div>
+
+<div id="experimentalMenu">
+  <div class="panel">
+    <h2>Экспериментальное меню</h2>
+    <p class="subtitle" style="margin-top:8px;">Открывается двойным нажатием по кнопке "Сбросить рекорд".</p>
+    <div class="row" style="margin-top:16px;">
+      <label for="expMagnet" style="display:flex; gap:8px; align-items:center;">
+        <input type="checkbox" id="expMagnet">
+        Новая функция: Магнит еды (притягивает еду рядом с игроком)
+      </label>
+    </div>
+    <div class="row" style="margin-top:18px;">
+      <button class="btn" id="expApply">Применить</button>
+      <button class="btn alt" id="expClose">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  const menu = document.getElementById("menu");
+  const gameOverPanel = document.getElementById("gameOver");
+  const experimentalMenu = document.getElementById("experimentalMenu");
+  const playButton = document.getElementById("playButton");
+  const retryButton = document.getElementById("retryButton");
+  const backMenuButton = document.getElementById("backMenuButton");
+  const clearBestButton = document.getElementById("clearBest");
+  const expMagnet = document.getElementById("expMagnet");
+  const expApplyButton = document.getElementById("expApply");
+  const expCloseButton = document.getElementById("expClose");
+  const playerImageInput = document.getElementById("playerImage");
+  const coopControls = document.getElementById("coopControls");
+  const coopStatusRow = document.getElementById("coopStatusRow");
+  const coopStatus = document.getElementById("coopStatus");
+  const coopUrlInput = document.getElementById("coopUrl");
+  const coopRoomInput = document.getElementById("coopRoom");
+  const coopNameInput = document.getElementById("coopName");
+  const coopConnectButton = document.getElementById("coopConnect");
+  const coopDisconnectButton = document.getElementById("coopDisconnect");
+
+  const modeCards = Array.from(document.querySelectorAll(".mode-card"));
+  const joystick = document.getElementById("joystick");
+  const joystickStick = document.getElementById("joystickStick");
+  const scoreValue = document.getElementById("scoreValue");
+  const modeValue = document.getElementById("modeValue");
+  const bestValue = document.getElementById("bestValue");
+  const statusLine = document.getElementById("statusLine");
+  const gameOverTitle = document.getElementById("gameOverTitle");
+  const gameOverText = document.getElementById("gameOverText");
+
+  const MODES = {
+    classic: {
+      label: "Классика",
+      startBots: 1,
+      pelletTarget: 95,
+      botBaseSpeed: 112,
+      scoreFromTime: false,
+      duration: null,
+      waveEvery: null
+    },
+    survival: {
+      label: "Выживание",
+      startBots: 2,
+      pelletTarget: 115,
+      botBaseSpeed: 116,
+      scoreFromTime: true,
+      duration: null,
+      waveEvery: 12
+    },
+    time_attack: {
+      label: "Тайм-атака",
+      startBots: 2,
+      pelletTarget: 150,
+      botBaseSpeed: 108,
+      scoreFromTime: false,
+      duration: 60,
+      waveEvery: null
+    },
+    beer_party: {
+      label: "Пивная вечеринка",
+      startBots: 2,
+      pelletTarget: 125,
+      botBaseSpeed: 114,
+      scoreFromTime: false,
+      duration: null,
+      waveEvery: null
+    },
+    coop_online: {
+      label: "Кооп онлайн",
+      startBots: 0,
+      pelletTarget: 140,
+      botBaseSpeed: 112,
+      scoreFromTime: false,
+      duration: null,
+      waveEvery: null
+    }
+  };
+
+  const WORLD = {
+    width: 4200,
+    height: 4200,
+    gridStep: 50
+  };
+
+  const state = {
+    selectedMode: "classic",
+    running: false,
+    paused: false,
+    gameOver: false,
+    player: null,
+    bots: [],
+    pellets: [],
+    powerups: [],
+    score: 0,
+    elapsed: 0,
+    waveTimer: 0,
+    boostTimer: 0,
+    shieldTimer: 0,
+    spawnTimer: 0,
+    powerupTimer: 0,
+    keys: new Set(),
+    mouse: { x: 0, y: 0, active: false },
+    camera: { x: 0, y: 0 },
+    isMobile: false,
+    joystick: { active: false, x: 0, y: 0, maxDist: 42, touchId: null },
+    experimental: { pelletMagnet: false },
+    coopPlayers: {},
+    coopInput: { x: 0, y: 0 },
+    coopSnapshotTimer: 0,
+    network: {
+      ws: null,
+      connected: false,
+      id: null,
+      hostId: null,
+      room: "party",
+      name: "Player",
+      url: "ws://localhost:8765"
+    },
+    clearBestClickTimer: null,
+    aiId: 1,
+    bestScores: loadBestScores(),
+    lastTime: 0
+  };
+
+  const playerImage = new Image();
+  playerImage.src = "dadasereza.png";
+  const pelletImage = new Image();
+  pelletImage.src = "nepivo.png";
+  let hasCustomImage = false;
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function createPlayer() {
+    return {
+      x: WORLD.width / 2,
+      y: WORLD.height / 2,
+      radius: 32,
+      baseSpeed: 210,
+      vx: 0,
+      vy: 0
+    };
+  }
+
+  function randomPoint() {
+    return {
+      x: Math.random() * WORLD.width,
+      y: Math.random() * WORLD.height
+    };
+  }
+
+  function syncCamera() {
+    if (!state.player) return;
+    const maxCamX = Math.max(0, WORLD.width - canvas.width);
+    const maxCamY = Math.max(0, WORLD.height - canvas.height);
+    state.camera.x = clamp(state.player.x - canvas.width / 2, 0, maxCamX);
+    state.camera.y = clamp(state.player.y - canvas.height / 2, 0, maxCamY);
+  }
+
+  function screenToWorld(screenX, screenY) {
+    return {
+      x: screenX + state.camera.x,
+      y: screenY + state.camera.y
+    };
+  }
+
+  function spawnBot(boost = 0) {
+    const p = randomPoint();
+    const radius = 18 + Math.random() * 16 + boost;
+    state.bots.push({
+      id: state.aiId++,
+      x: p.x,
+      y: p.y,
+      radius,
+      vx: 0,
+      vy: 0,
+      color: `hsl(${Math.floor(10 + Math.random() * 30)}, 85%, ${45 + Math.random() * 10}%)`
+    });
+  }
+
+  function spawnPellet(x = null, y = null, bonus = false) {
+    const point = x === null ? randomPoint() : { x, y };
+    state.pellets.push({
+      x: point.x,
+      y: point.y,
+      radius: bonus ? 6.5 : 5,
+      value: bonus ? 22 : 10,
+      kind: bonus ? "bonus" : "normal",
+      color: bonus ? "#ffd166" : "#4dd7a8"
+    });
+  }
+
+  function spawnPowerup() {
+    const point = randomPoint();
+    const type = Math.random() < 0.5 ? "shield" : "boost";
+    state.powerups.push({
+      type,
+      x: point.x,
+      y: point.y,
+      radius: 12,
+      life: 10
+    });
+  }
+
+  function loadBestScores() {
+    const raw = localStorage.getItem("romanio_best_v2");
+    if (!raw) {
+      return { classic: 0, survival: 0, time_attack: 0, beer_party: 0, coop_online: 0 };
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        classic: Number(parsed.classic) || 0,
+        survival: Number(parsed.survival) || 0,
+        time_attack: Number(parsed.time_attack) || 0,
+        beer_party: Number(parsed.beer_party) || 0,
+        coop_online: Number(parsed.coop_online) || 0
+      };
+    } catch {
+      return { classic: 0, survival: 0, time_attack: 0, beer_party: 0, coop_online: 0 };
+    }
+  }
+
+  function saveBestScores() {
+    localStorage.setItem("romanio_best_v2", JSON.stringify(state.bestScores));
+  }
+
+  function updateHud() {
+    scoreValue.textContent = String(Math.floor(state.score));
+    modeValue.textContent = MODES[state.selectedMode].label;
+    bestValue.textContent = `Best: ${Math.floor(state.bestScores[state.selectedMode])}`;
+
+    const parts = [];
+    if (state.shieldTimer > 0) {
+      parts.push(`Щит ${state.shieldTimer.toFixed(1)}с`);
+    }
+    if (state.boostTimer > 0) {
+      parts.push(`Ускорение ${state.boostTimer.toFixed(1)}с`);
+    }
+    if (!parts.length) {
+      parts.push(state.paused ? "Пауза" : "В игре");
+    }
+    if (isCoopMode()) {
+      if (!state.network.connected) parts.push("офлайн");
+      else parts.push(isCoopHost() ? "хост" : "клиент");
+    }
+    statusLine.textContent = `Статус: ${parts.join(" | ")}`;
+  }
+
+  function detectMobileControls() {
+    const byTouch = window.matchMedia("(pointer: coarse)").matches;
+    const byUA = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    state.isMobile = byTouch || byUA;
+    joystick.style.display = state.isMobile ? "block" : "none";
+  }
+
+  function setJoystickVector(clientX, clientY) {
+    const rect = joystick.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+    const dist = Math.hypot(dx, dy);
+    const max = state.joystick.maxDist;
+    if (dist > max && dist > 0) {
+      dx = (dx / dist) * max;
+      dy = (dy / dist) * max;
+    }
+
+    state.joystick.x = dx / max;
+    state.joystick.y = dy / max;
+    joystickStick.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+
+  function resetJoystick() {
+    state.joystick.active = false;
+    state.joystick.touchId = null;
+    state.joystick.x = 0;
+    state.joystick.y = 0;
+    joystickStick.style.transform = "translate(0px, 0px)";
+  }
+
+  function selectMode(mode) {
+    state.selectedMode = mode;
+    modeCards.forEach((card) => {
+      card.classList.toggle("active", card.dataset.mode === mode);
+    });
+    const showCoop = mode === "coop_online";
+    coopControls.style.display = showCoop ? "flex" : "none";
+    coopStatusRow.style.display = showCoop ? "flex" : "none";
+    updateHud();
+  }
+
+  function isCoopMode() {
+    return state.selectedMode === "coop_online";
+  }
+
+  function isCoopConnected() {
+    return isCoopMode() && state.network.connected;
+  }
+
+  function isCoopHost() {
+    return isCoopConnected() && state.network.id && state.network.hostId === state.network.id;
+  }
+
+  function isCoopClient() {
+    return isCoopConnected() && !isCoopHost();
+  }
+
+  function setCoopStatus(text) {
+    coopStatus.textContent = `Сеть: ${text}`;
+  }
+
+  function networkSend(payload) {
+    if (!state.network.ws || state.network.ws.readyState !== WebSocket.OPEN) return;
+    state.network.ws.send(JSON.stringify(payload));
+  }
+
+  function makeCoopPlayer(name = "Player") {
+    const p = randomPoint();
+    return {
+      x: p.x,
+      y: p.y,
+      radius: 30,
+      vx: 0,
+      vy: 0,
+      name
+    };
+  }
+
+  function disconnectCoop() {
+    if (state.network.ws) {
+      state.network.ws.close();
+    }
+    state.network.ws = null;
+    state.network.connected = false;
+    state.network.id = null;
+    state.network.hostId = null;
+    state.coopPlayers = {};
+    setCoopStatus("не подключено");
+  }
+
+  function handleCoopMessage(msg) {
+    if (msg.type === "welcome") {
+      state.network.id = msg.id;
+      return;
+    }
+
+    if (msg.type === "room_state") {
+      state.network.hostId = msg.hostId;
+      if (isCoopHost()) {
+        for (const peer of msg.peers || []) {
+          if (peer.id !== state.network.id && !state.coopPlayers[peer.id]) {
+            state.coopPlayers[peer.id] = makeCoopPlayer(peer.name || "Player");
+          }
+        }
+      }
+      setCoopStatus(isCoopHost() ? "подключено (хост)" : "подключено (клиент)");
+      return;
+    }
+
+    if (msg.type === "peer_join") {
+      if (isCoopHost() && msg.id !== state.network.id) {
+        state.coopPlayers[msg.id] = makeCoopPlayer(msg.name || "Player");
+      }
+      return;
+    }
+
+    if (msg.type === "peer_leave") {
+      delete state.coopPlayers[msg.id];
+      return;
+    }
+
+    if (msg.type === "host_changed") {
+      state.network.hostId = msg.hostId;
+      setCoopStatus(isCoopHost() ? "подключено (хост)" : "подключено (клиент)");
+      return;
+    }
+
+    if (msg.type === "input" && isCoopHost()) {
+      if (!state.coopPlayers[msg.from]) {
+        state.coopPlayers[msg.from] = makeCoopPlayer(msg.name || "Player");
+      }
+      if (msg.name) state.coopPlayers[msg.from].name = String(msg.name).slice(0, 24);
+      state.coopPlayers[msg.from].inputX = Number(msg.x) || 0;
+      state.coopPlayers[msg.from].inputY = Number(msg.y) || 0;
+      return;
+    }
+
+    if (msg.type === "snapshot" && isCoopClient()) {
+      state.score = msg.score || 0;
+      state.pellets = Array.isArray(msg.pellets) ? msg.pellets : [];
+      state.bots = Array.isArray(msg.bots) ? msg.bots : [];
+      state.powerups = Array.isArray(msg.powerups) ? msg.powerups : [];
+
+      const players = msg.players || {};
+      const me = players[state.network.id];
+      if (me) {
+        state.player = {
+          x: me.x, y: me.y, radius: me.radius, vx: me.vx || 0, vy: me.vy || 0, baseSpeed: 210
+        };
+      }
+
+      const nextCoop = {};
+      for (const [id, p] of Object.entries(players)) {
+        if (id === state.network.id) continue;
+        nextCoop[id] = {
+          x: p.x, y: p.y, radius: p.radius, vx: p.vx || 0, vy: p.vy || 0, name: p.name || "Player"
+        };
+      }
+      state.coopPlayers = nextCoop;
+      return;
+    }
+  }
+
+  function connectCoop() {
+    disconnectCoop();
+    state.network.url = coopUrlInput.value.trim() || "ws://localhost:8765";
+    state.network.room = coopRoomInput.value.trim() || "party";
+    state.network.name = coopNameInput.value.trim() || "Player";
+
+    try {
+      const ws = new WebSocket(state.network.url);
+      state.network.ws = ws;
+      setCoopStatus("подключение...");
+
+      ws.addEventListener("open", () => {
+        state.network.connected = true;
+        networkSend({
+          type: "join",
+          room: state.network.room,
+          name: state.network.name
+        });
+      });
+
+      ws.addEventListener("message", (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleCoopMessage(msg);
+        } catch {
+          // Ignore invalid payloads.
+        }
+      });
+
+      ws.addEventListener("close", () => {
+        disconnectCoop();
+      });
+
+      ws.addEventListener("error", () => {
+        setCoopStatus("ошибка подключения");
+      });
+    } catch {
+      setCoopStatus("ошибка URL");
+    }
+  }
+
+  function beginGame() {
+    const mode = MODES[state.selectedMode];
+    if (isCoopMode() && !state.network.connected) {
+      alert("Сначала подключись к кооп-серверу.");
+      return;
+    }
+    if (isCoopMode() && !state.network.hostId) {
+      alert("Подожди инициализацию комнаты (1-2 секунды) и нажми Старт снова.");
+      return;
+    }
+
+    state.running = true;
+    state.paused = false;
+    state.gameOver = false;
+    state.player = createPlayer();
+    state.bots = [];
+    state.pellets = [];
+    state.powerups = [];
+    state.score = 0;
+    state.elapsed = 0;
+    state.waveTimer = 0;
+    state.spawnTimer = 0;
+    state.powerupTimer = 0;
+    state.boostTimer = 0;
+    state.shieldTimer = 0;
+    state.lastTime = performance.now();
+    state.mouse.active = false;
+    state.coopPlayers = {};
+    state.coopSnapshotTimer = 0;
+
+    if (!isCoopMode() || isCoopHost()) {
+      for (let i = 0; i < mode.startBots; i++) {
+        spawnBot();
+      }
+      for (let i = 0; i < mode.pelletTarget; i++) {
+        spawnPellet();
+      }
+    }
+
+    menu.style.display = "none";
+    gameOverPanel.style.display = "none";
+    syncCamera();
+    updateHud();
+  }
+
+  function finishGame(message, victory = false) {
+    state.running = false;
+    state.gameOver = true;
+
+    if (state.score > state.bestScores[state.selectedMode]) {
+      state.bestScores[state.selectedMode] = Math.floor(state.score);
+      saveBestScores();
+    }
+
+    gameOverTitle.textContent = victory ? "Отличный раунд" : "Игра окончена";
+    gameOverText.textContent = `${message} Счёт: ${Math.floor(state.score)} | Рекорд: ${Math.floor(state.bestScores[state.selectedMode])}`;
+    gameOverPanel.style.display = "grid";
+    updateHud();
+  }
+
+  function distance(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
+
+  function agarSpeedForRadius(radius, speedFactor = 1) {
+    const base = 360 / Math.pow(Math.max(12, radius), 0.35);
+    return clamp(base * speedFactor, 52, 260);
+  }
+
+  function applyEntityPhysics(entity, targetDirX, targetDirY, dt, speedFactor = 1) {
+    const targetSpeed = agarSpeedForRadius(entity.radius, speedFactor);
+    const targetVx = targetDirX * targetSpeed;
+    const targetVy = targetDirY * targetSpeed;
+    const response = clamp(8.5 * dt, 0.08, 0.45);
+    entity.vx += (targetVx - entity.vx) * response;
+    entity.vy += (targetVy - entity.vy) * response;
+
+    entity.x += entity.vx * dt;
+    entity.y += entity.vy * dt;
+
+    const minX = entity.radius;
+    const maxX = WORLD.width - entity.radius;
+    const minY = entity.radius;
+    const maxY = WORLD.height - entity.radius;
+
+    if (entity.x < minX) {
+      entity.x = minX;
+      entity.vx *= -0.18;
+    } else if (entity.x > maxX) {
+      entity.x = maxX;
+      entity.vx *= -0.18;
+    }
+
+    if (entity.y < minY) {
+      entity.y = minY;
+      entity.vy *= -0.18;
+    } else if (entity.y > maxY) {
+      entity.y = maxY;
+      entity.vy *= -0.18;
+    }
+  }
+
+  function applyAgarSoftCollisions() {
+    if (!state.player) return;
+    const entities = [state.player, ...Object.values(state.coopPlayers), ...state.bots];
+    for (let i = 0; i < entities.length; i++) {
+      for (let j = i + 1; j < entities.length; j++) {
+        const a = entities[i];
+        const b = entities[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 0.0001;
+        const minDist = a.radius + b.radius;
+        if (dist >= minDist) continue;
+        if (a.radius > b.radius * 1.07 || b.radius > a.radius * 1.07) continue;
+
+        const overlap = minDist - dist;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const totalMass = a.radius + b.radius;
+        const aPush = (b.radius / totalMass) * overlap;
+        const bPush = (a.radius / totalMass) * overlap;
+
+        a.x -= nx * aPush;
+        a.y -= ny * aPush;
+        b.x += nx * bPush;
+        b.y += ny * bPush;
+
+        a.vx -= nx * 8;
+        a.vy -= ny * 8;
+        b.vx += nx * 8;
+        b.vy += ny * 8;
+      }
+    }
+  }
+
+  function applyPelletMagnet(dt) {
+    if (!state.experimental.pelletMagnet || !state.player) return;
+    const p = state.player;
+    for (const pellet of state.pellets) {
+      const dx = p.x - pellet.x;
+      const dy = p.y - pellet.y;
+      const d = Math.hypot(dx, dy);
+      if (d < 1 || d > 180) continue;
+      const pull = (1 - d / 180) * (95 * dt);
+      pellet.x += (dx / d) * pull;
+      pellet.y += (dy / d) * pull;
+    }
+  }
+
+  function openExperimentalMenu() {
+    expMagnet.checked = state.experimental.pelletMagnet;
+    experimentalMenu.style.display = "grid";
+  }
+
+  function movePlayer(dt) {
+    const player = state.player;
+    if (!player) return;
+
+    let mx = 0;
+    let my = 0;
+
+    if (state.keys.has("ArrowUp") || state.keys.has("w")) my -= 1;
+    if (state.keys.has("ArrowDown") || state.keys.has("s")) my += 1;
+    if (state.keys.has("ArrowLeft") || state.keys.has("a")) mx -= 1;
+    if (state.keys.has("ArrowRight") || state.keys.has("d")) mx += 1;
+
+    if (mx === 0 && my === 0 && state.joystick.active) {
+      mx = state.joystick.x;
+      my = state.joystick.y;
+    }
+
+    if (mx === 0 && my === 0 && state.mouse.active) {
+      const worldMouse = screenToWorld(state.mouse.x, state.mouse.y);
+      mx = worldMouse.x - player.x;
+      my = worldMouse.y - player.y;
+    }
+
+    const len = Math.hypot(mx, my);
+    if (len > 0.0001) {
+      mx /= len;
+      my /= len;
+    }
+    state.coopInput.x = mx;
+    state.coopInput.y = my;
+
+    if (isCoopClient()) {
+      return;
+    }
+
+    const speedFactor = state.boostTimer > 0 ? 1.28 : 1;
+    applyEntityPhysics(player, mx, my, dt, speedFactor);
+  }
+
+  function moveCoopPlayersHost(dt) {
+    if (!isCoopHost()) return;
+    for (const p of Object.values(state.coopPlayers)) {
+      const inputX = Number(p.inputX) || 0;
+      const inputY = Number(p.inputY) || 0;
+      const len = Math.hypot(inputX, inputY);
+      const mx = len > 0.0001 ? inputX / len : 0;
+      const my = len > 0.0001 ? inputY / len : 0;
+      applyEntityPhysics(p, mx, my, dt, 1);
+    }
+  }
+
+  function botSteerTarget(bot) {
+    const player = state.player;
+    if (!player) return { x: bot.x, y: bot.y, mood: "idle" };
+
+    const distToPlayer = distance(bot, player);
+    if (bot.radius > player.radius * 1.08 && distToPlayer < 360) {
+      return { x: player.x, y: player.y, mood: "hunt" };
+    }
+
+    if (player.radius > bot.radius * 1.2 && distToPlayer < 250) {
+      return {
+        x: bot.x - (player.x - bot.x),
+        y: bot.y - (player.y - bot.y),
+        mood: "flee"
+      };
+    }
+
+    let nearest = null;
+    let nearestDist = Infinity;
+    for (const pellet of state.pellets) {
+      const d = distance(bot, pellet);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearest = pellet;
+      }
+    }
+
+    if (nearest) {
+      return { x: nearest.x, y: nearest.y, mood: "farm" };
+    }
+    return { x: player.x, y: player.y, mood: "drift" };
+  }
+
+  function moveBots(dt) {
+    const mode = MODES[state.selectedMode];
+    for (const bot of state.bots) {
+      const target = botSteerTarget(bot);
+      const dx = target.x - bot.x;
+      const dy = target.y - bot.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const dirX = dx / len;
+      const dirY = dy / len;
+
+      const moodMult = target.mood === "hunt" ? 1.08 : target.mood === "flee" ? 1.17 : 0.95;
+      const modeFactor = mode.botBaseSpeed / 112;
+      applyEntityPhysics(bot, dirX, dirY, dt, moodMult * modeFactor);
+    }
+  }
+
+  function handlePelletEats(dt) {
+    const player = state.player;
+    for (let i = state.pellets.length - 1; i >= 0; i--) {
+      const pellet = state.pellets[i];
+      if (distance(player, pellet) < player.radius + pellet.radius) {
+        player.radius += 0.34;
+        state.score += pellet.value;
+        state.pellets.splice(i, 1);
+      }
+    }
+
+    for (const bot of state.bots) {
+      for (let i = state.pellets.length - 1; i >= 0; i--) {
+        const pellet = state.pellets[i];
+        if (distance(bot, pellet) < bot.radius + pellet.radius) {
+          bot.radius += 0.22;
+          state.pellets.splice(i, 1);
+        }
+      }
+      // Removed bot passive mass decay by request.
+    }
+
+    // Removed player passive mass decay by request.
+  }
+
+  function handleCoopPelletEatsHost() {
+    if (!isCoopHost()) return;
+    for (const ally of Object.values(state.coopPlayers)) {
+      for (let i = state.pellets.length - 1; i >= 0; i--) {
+        const pellet = state.pellets[i];
+        if (distance(ally, pellet) < ally.radius + pellet.radius) {
+          ally.radius += 0.34;
+          state.score += pellet.value;
+          state.pellets.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  function resolveEntityEat(eater, victim, factor = 0.28) {
+    eater.radius += victim.radius * factor;
+  }
+
+  function handleBotVsPlayer() {
+    const player = state.player;
+    for (let i = state.bots.length - 1; i >= 0; i--) {
+      const bot = state.bots[i];
+      const d = distance(bot, player);
+      const canTouch = d < Math.max(bot.radius, player.radius) * 0.92;
+      if (!canTouch) continue;
+
+      if (player.radius > bot.radius * 1.07) {
+        resolveEntityEat(player, bot, 0.32);
+        state.bots.splice(i, 1);
+        state.score += 125;
+        setTimeout(() => {
+          if (state.running) spawnBot(2 + Math.random() * 6);
+        }, 900);
+      } else if (bot.radius > player.radius * 1.07) {
+        if (state.shieldTimer > 0) {
+          bot.x += (bot.x - player.x) * 0.15;
+          bot.y += (bot.y - player.y) * 0.15;
+          bot.radius = Math.max(12, bot.radius - 2.5);
+        } else {
+          finishGame("Тебя поглотил бот.");
+          return;
+        }
+      }
+    }
+  }
+
+  function handleBotVsCoopHost() {
+    if (!isCoopHost()) return;
+    const players = [state.player, ...Object.values(state.coopPlayers)];
+    for (const targetPlayer of players) {
+      for (let i = state.bots.length - 1; i >= 0; i--) {
+        const bot = state.bots[i];
+        const d = distance(bot, targetPlayer);
+        if (d >= Math.max(bot.radius, targetPlayer.radius) * 0.92) continue;
+
+        if (targetPlayer.radius > bot.radius * 1.07) {
+          resolveEntityEat(targetPlayer, bot, 0.32);
+          state.bots.splice(i, 1);
+          state.score += 110;
+          setTimeout(() => {
+            if (state.running) spawnBot(2 + Math.random() * 6);
+          }, 900);
+        } else if (bot.radius > targetPlayer.radius * 1.07) {
+          targetPlayer.radius = 30;
+          const resp = randomPoint();
+          targetPlayer.x = resp.x;
+          targetPlayer.y = resp.y;
+          targetPlayer.vx = 0;
+          targetPlayer.vy = 0;
+        }
+      }
+    }
+  }
+
+  function sendCoopSnapshot(dt) {
+    if (!isCoopHost()) return;
+    state.coopSnapshotTimer += dt;
+    if (state.coopSnapshotTimer < 0.07) return;
+    state.coopSnapshotTimer = 0;
+
+    const players = {};
+    players[state.network.id] = {
+      x: state.player.x,
+      y: state.player.y,
+      radius: state.player.radius,
+      vx: state.player.vx || 0,
+      vy: state.player.vy || 0,
+      name: state.network.name
+    };
+    for (const [id, p] of Object.entries(state.coopPlayers)) {
+      players[id] = {
+        x: p.x, y: p.y, radius: p.radius, vx: p.vx || 0, vy: p.vy || 0, name: p.name || "Player"
+      };
+    }
+
+    networkSend({
+      type: "snapshot",
+      score: state.score,
+      pellets: state.pellets,
+      bots: state.bots,
+      powerups: state.powerups,
+      players
+    });
+  }
+
+  function handlePowerups(dt) {
+    for (let i = state.powerups.length - 1; i >= 0; i--) {
+      const p = state.powerups[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        state.powerups.splice(i, 1);
+        continue;
+      }
+
+      if (distance(state.player, p) < state.player.radius + p.radius) {
+        if (p.type === "boost") {
+          state.boostTimer = 5;
+          state.score += 35;
+        } else {
+          state.shieldTimer = 6;
+          state.score += 25;
+        }
+        state.powerups.splice(i, 1);
+      }
+    }
+
+    state.boostTimer = Math.max(0, state.boostTimer - dt);
+    state.shieldTimer = Math.max(0, state.shieldTimer - dt);
+  }
+
+  function modeLogic(dt) {
+    const mode = MODES[state.selectedMode];
+
+    if (mode.scoreFromTime) {
+      state.score += 14 * dt;
+    }
+
+    if (mode.waveEvery) {
+      state.waveTimer += dt;
+      if (state.waveTimer >= mode.waveEvery) {
+        state.waveTimer = 0;
+        spawnBot(3 + Math.random() * 7);
+        state.score += 40;
+      }
+    }
+
+    if (mode.duration !== null) {
+      const remain = Math.max(0, mode.duration - state.elapsed);
+      statusLine.textContent = `Статус: осталось ${remain.toFixed(1)}с`;
+      if (remain <= 0) {
+        finishGame("Время вышло. Отличная попытка!", true);
+      }
+    }
+  }
+
+  function spawnSystems(dt) {
+    const mode = MODES[state.selectedMode];
+    state.spawnTimer += dt;
+    state.powerupTimer += dt;
+
+    if (state.pellets.length < mode.pelletTarget && state.spawnTimer > 0.03) {
+      state.spawnTimer = 0;
+      spawnPellet();
+      if (Math.random() < 0.08) {
+        spawnPellet(null, null, true);
+      }
+    }
+
+    if (state.powerupTimer > 9.5 && state.powerups.length < 2) {
+      state.powerupTimer = 0;
+      spawnPowerup();
+    }
+  }
+
+  function ejectMass() {
+    const p = state.player;
+    if (!state.running || p.radius <= 16) return;
+
+    p.radius -= 2.4;
+    const worldMouse = screenToWorld(state.mouse.x, state.mouse.y);
+    const ang = Math.atan2(worldMouse.y - p.y, worldMouse.x - p.x) || Math.random() * Math.PI * 2;
+    const x = p.x + Math.cos(ang) * (p.radius + 18);
+    const y = p.y + Math.sin(ang) * (p.radius + 18);
+    spawnPellet(clamp(x, 0, WORLD.width), clamp(y, 0, WORLD.height), true);
+    state.score = Math.max(0, state.score - 8);
+  }
+
+  function drawBackground() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    grad.addColorStop(0, "#0e2438");
+    grad.addColorStop(0.5, "#163b56");
+    grad.addColorStop(1, "#0b1728");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1;
+    const step = WORLD.gridStep;
+    const startX = -(state.camera.x % step);
+    const startY = -(state.camera.y % step);
+    for (let x = startX; x < canvas.width; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = startY; y < canvas.height; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+
+    const worldX = -state.camera.x;
+    const worldY = -state.camera.y;
+    ctx.strokeStyle = "rgba(255,255,255,0.42)";
+    ctx.lineWidth = 5;
+    ctx.strokeRect(worldX, worldY, WORLD.width, WORLD.height);
+  }
+
+  function drawCircleEntity(entity, color, label = "") {
+    const sx = entity.x - state.camera.x;
+    const sy = entity.y - state.camera.y;
+    ctx.beginPath();
+    ctx.arc(sx, sy, entity.radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.stroke();
+
+    if (label) {
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.font = "bold 11px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.fillText(label, sx, sy + 4);
+    }
+  }
+
+  function drawPlayer() {
+    const p = state.player;
+    if (!p) return;
+
+    const px = p.x - state.camera.x;
+    const py = p.y - state.camera.y;
+
+    if (state.shieldTimer > 0) {
+      ctx.beginPath();
+      ctx.arc(px, py, p.radius + 7 + Math.sin(state.elapsed * 8) * 1.5, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(125, 209, 255, 0.75)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+    ctx.clip();
+
+    if ((hasCustomImage || (playerImage.complete && playerImage.naturalWidth > 0))) {
+      ctx.drawImage(playerImage, px - p.radius, py - p.radius, p.radius * 2, p.radius * 2);
+    } else {
+      const g = ctx.createRadialGradient(px - p.radius * 0.4, py - p.radius * 0.5, p.radius * 0.2, px, py, p.radius);
+      g.addColorStop(0, "#9ef8dd");
+      g.addColorStop(1, "#36c99a");
+      ctx.fillStyle = g;
+      ctx.fillRect(px - p.radius, py - p.radius, p.radius * 2, p.radius * 2);
+    }
+
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.stroke();
+  }
+
+  function drawPellets() {
+    const beerMode = state.selectedMode === "beer_party";
+    for (const pellet of state.pellets) {
+      const sx = pellet.x - state.camera.x;
+      const sy = pellet.y - state.camera.y;
+      if (beerMode && pellet.kind === "normal" && pelletImage.complete && pelletImage.naturalWidth > 0) {
+        const size = pellet.radius * 2.8;
+        ctx.drawImage(pelletImage, sx - size / 2, sy - size / 2, size, size);
+        continue;
+      }
+      ctx.beginPath();
+      ctx.arc(sx, sy, pellet.radius, 0, Math.PI * 2);
+      ctx.fillStyle = pellet.color;
+      ctx.fill();
+    }
+  }
+
+  function drawPowerups() {
+    for (const p of state.powerups) {
+      const color = p.type === "boost" ? "#ff9f43" : "#8fd3ff";
+      drawCircleEntity(p, color, p.type === "boost" ? "B" : "S");
+    }
+  }
+
+  function drawBots() {
+    for (const bot of state.bots) {
+      drawCircleEntity(bot, bot.color);
+    }
+  }
+
+  function drawCoopPlayers() {
+    for (const p of Object.values(state.coopPlayers)) {
+      const nick = p.name && p.name.trim() ? p.name.trim() : "Player";
+      drawCircleEntity(p, "#63b3ff", nick);
+    }
+  }
+
+  function render() {
+    drawBackground();
+    if (!state.player) return;
+    drawPellets();
+    drawPowerups();
+    drawBots();
+    if (isCoopMode()) {
+      drawCoopPlayers();
+    }
+    drawPlayer();
+  }
+
+  function tick(now) {
+    const dt = Math.min(0.05, (now - state.lastTime) / 1000);
+    state.lastTime = now;
+
+    if (state.running && !state.paused) {
+      state.elapsed += dt;
+      movePlayer(dt);
+      if (isCoopMode()) {
+        if (isCoopHost()) {
+          moveCoopPlayersHost(dt);
+          moveBots(dt);
+          applyAgarSoftCollisions();
+          applyPelletMagnet(dt);
+          spawnSystems(dt);
+          handlePelletEats(dt);
+          handleCoopPelletEatsHost();
+          handlePowerups(dt);
+          handleBotVsCoopHost();
+          modeLogic(dt);
+          sendCoopSnapshot(dt);
+        } else if (isCoopClient()) {
+          networkSend({
+            type: "input",
+            x: state.coopInput.x,
+            y: state.coopInput.y,
+            name: state.network.name
+          });
+        }
+      } else {
+        moveBots(dt);
+        applyAgarSoftCollisions();
+        applyPelletMagnet(dt);
+        spawnSystems(dt);
+        handlePelletEats(dt);
+        handlePowerups(dt);
+        handleBotVsPlayer();
+        if (state.running) {
+          modeLogic(dt);
+        }
+      }
+      syncCamera();
+      updateHud();
+    }
+
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  window.addEventListener("resize", detectMobileControls);
+
+  window.addEventListener("mousemove", (event) => {
+    state.mouse.x = event.clientX;
+    state.mouse.y = event.clientY;
+    state.mouse.active = true;
+  });
+
+  joystick.addEventListener("touchstart", (event) => {
+    const t = event.changedTouches[0];
+    state.joystick.active = true;
+    state.joystick.touchId = t.identifier;
+    setJoystickVector(t.clientX, t.clientY);
+    event.preventDefault();
+  }, { passive: false });
+
+  joystick.addEventListener("touchmove", (event) => {
+    for (const t of event.changedTouches) {
+      if (t.identifier === state.joystick.touchId) {
+        setJoystickVector(t.clientX, t.clientY);
+        event.preventDefault();
+        break;
+      }
+    }
+  }, { passive: false });
+
+  joystick.addEventListener("touchend", (event) => {
+    for (const t of event.changedTouches) {
+      if (t.identifier === state.joystick.touchId) {
+        resetJoystick();
+        event.preventDefault();
+        break;
+      }
+    }
+  }, { passive: false });
+
+  joystick.addEventListener("touchcancel", resetJoystick, { passive: true });
+
+  window.addEventListener("keydown", (event) => {
+    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+
+    if (key === "p") {
+      if (state.running) {
+        state.paused = !state.paused;
+        updateHud();
+      }
+      return;
+    }
+
+    if (key === "q") {
+      ejectMass();
+      return;
+    }
+
+    if (key === "Shift") {
+      state.boostTimer = Math.max(state.boostTimer, 1.2);
+    }
+
+    state.keys.add(key);
+  });
+
+  window.addEventListener("keyup", (event) => {
+    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    state.keys.delete(key);
+  });
+
+  playerImageInput.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      playerImage.src = ev.target.result;
+      hasCustomImage = true;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  modeCards.forEach((card) => {
+    card.addEventListener("click", () => selectMode(card.dataset.mode));
+  });
+
+  playButton.addEventListener("click", beginGame);
+  retryButton.addEventListener("click", beginGame);
+
+  backMenuButton.addEventListener("click", () => {
+    state.running = false;
+    state.paused = false;
+    gameOverPanel.style.display = "none";
+    menu.style.display = "grid";
+    updateHud();
+  });
+
+  clearBestButton.addEventListener("click", () => {
+    if (state.clearBestClickTimer) {
+      clearTimeout(state.clearBestClickTimer);
+      state.clearBestClickTimer = null;
+      openExperimentalMenu();
+      return;
+    }
+    state.clearBestClickTimer = setTimeout(() => {
+      state.bestScores = { classic: 0, survival: 0, time_attack: 0, beer_party: 0, coop_online: 0 };
+      saveBestScores();
+      updateHud();
+      state.clearBestClickTimer = null;
+    }, 260);
+  });
+
+  coopConnectButton.addEventListener("click", connectCoop);
+  coopDisconnectButton.addEventListener("click", disconnectCoop);
+
+  expApplyButton.addEventListener("click", () => {
+    state.experimental.pelletMagnet = expMagnet.checked;
+    experimentalMenu.style.display = "none";
+    updateHud();
+  });
+
+  expCloseButton.addEventListener("click", () => {
+    experimentalMenu.style.display = "none";
+  });
+
+  resizeCanvas();
+  detectMobileControls();
+  setCoopStatus("не подключено");
+  selectMode("classic");
+  state.player = createPlayer();
+  state.lastTime = performance.now();
+  updateHud();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
