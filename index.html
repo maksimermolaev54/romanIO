@@ -401,6 +401,11 @@ input[type="text"] {
           <option value="ws://192.168.2.3:8765"></option>
           <option value="ws://localhost:8765"></option>
         </datalist>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn alt" id="presetRailway" type="button">Railway</button>
+          <button class="btn alt" id="presetLan" type="button">LAN</button>
+          <button class="btn alt" id="presetLocal" type="button">Localhost</button>
+        </div>
       </div>
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopRoom">Комната</label>
@@ -480,6 +485,9 @@ input[type="text"] {
   const coopNameInput = document.getElementById("coopName");
   const coopConnectButton = document.getElementById("coopConnect");
   const coopDisconnectButton = document.getElementById("coopDisconnect");
+  const presetRailwayButton = document.getElementById("presetRailway");
+  const presetLanButton = document.getElementById("presetLan");
+  const presetLocalButton = document.getElementById("presetLocal");
 
   const modeCards = Array.from(document.querySelectorAll(".mode-card"));
   const joystick = document.getElementById("joystick");
@@ -1879,6 +1887,16 @@ input[type="text"] {
 
   coopConnectButton.addEventListener("click", connectCoop);
   coopDisconnectButton.addEventListener("click", disconnectCoop);
+
+  presetRailwayButton.addEventListener("click", () => {
+    coopUrlInput.value = "wss://romanio-production.up.railway.app";
+  });
+  presetLanButton.addEventListener("click", () => {
+    coopUrlInput.value = "ws://192.168.2.3:8765";
+  });
+  presetLocalButton.addEventListener("click", () => {
+    coopUrlInput.value = "ws://localhost:8765";
+  });
 
   expApplyButton.addEventListener("click", () => {
     state.experimental.pelletMagnet = expMagnet.checked;
