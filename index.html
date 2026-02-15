@@ -362,7 +362,7 @@ input[type="text"] {
     <div class="row" id="coopControls" style="display:none; align-items:end;">
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopUrl">WS URL</label>
-        <input id="coopUrl" type="text" value="ws://localhost:8765" style="min-width:180px;">
+        <input id="coopUrl" type="text" value="ws://192.168.2.3:8765" style="min-width:180px;">
       </div>
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopRoom">Комната</label>
@@ -452,7 +452,7 @@ input[type="text"] {
   const statusLine = document.getElementById("statusLine");
   const gameOverTitle = document.getElementById("gameOverTitle");
   const gameOverText = document.getElementById("gameOverText");
-  const COOP_WS_URL = "ws://localhost:8765";
+  const COOP_WS_URL = "ws://192.168.2.3:8765";
 
   const MODES = {
     classic: {
