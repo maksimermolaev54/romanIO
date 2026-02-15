@@ -70,6 +70,27 @@ canvas {
   touch-action: none;
 }
 
+#mobileActions {
+  position: fixed;
+  right: 14px;
+  bottom: 24px;
+  z-index: 7;
+  display: none;
+}
+
+#mobileEject {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 159, 67, 0.9);
+  color: #1a1207;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  touch-action: none;
+}
+
 #joystickStick {
   position: absolute;
   left: 50%;
@@ -291,6 +312,17 @@ input[type="text"] {
     margin-top: -26px;
   }
 
+  #mobileActions {
+    right: 12px;
+    bottom: 18px;
+  }
+
+  #mobileEject {
+    width: 76px;
+    height: 76px;
+    font-size: 14px;
+  }
+
   .menu-grid {
     grid-template-columns: 1fr;
   }
@@ -312,6 +344,7 @@ input[type="text"] {
 <body>
 <canvas id="gameCanvas"></canvas>
 <div id="joystick"><div id="joystickStick"></div></div>
+<div id="mobileActions"><button id="mobileEject" type="button">Q / Eject</button></div>
 
 <div id="hud" aria-live="polite">
   <div class="hud-card">
@@ -362,7 +395,12 @@ input[type="text"] {
     <div class="row" id="coopControls" style="display:none; align-items:end;">
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopUrl">WS URL</label>
-        <input id="coopUrl" type="text" value="ws://192.168.2.3:8765" style="min-width:180px;">
+        <input id="coopUrl" type="text" value="wss://romanio-production.up.railway.app" list="coopUrlPresets" style="min-width:180px;">
+        <datalist id="coopUrlPresets">
+          <option value="wss://romanio-production.up.railway.app"></option>
+          <option value="ws://192.168.2.3:8765"></option>
+          <option value="ws://localhost:8765"></option>
+        </datalist>
       </div>
       <div style="display:flex; flex-direction:column; gap:6px;">
         <label for="coopRoom">Комната</label>
@@ -446,13 +484,15 @@ input[type="text"] {
   const modeCards = Array.from(document.querySelectorAll(".mode-card"));
   const joystick = document.getElementById("joystick");
   const joystickStick = document.getElementById("joystickStick");
+  const mobileActions = document.getElementById("mobileActions");
+  const mobileEject = document.getElementById("mobileEject");
   const scoreValue = document.getElementById("scoreValue");
   const modeValue = document.getElementById("modeValue");
   const bestValue = document.getElementById("bestValue");
   const statusLine = document.getElementById("statusLine");
   const gameOverTitle = document.getElementById("gameOverTitle");
   const gameOverText = document.getElementById("gameOverText");
-  const COOP_WS_URL = "ws://192.168.2.3:8765";
+  const COOP_WS_URL = "wss://romanio-production.up.railway.app";
 
   const MODES = {
     classic: {
@@ -529,9 +569,11 @@ input[type="text"] {
     camera: { x: 0, y: 0 },
     isMobile: false,
     joystick: { active: false, x: 0, y: 0, maxDist: 42, touchId: null },
+    desktopPositionLock: { enabled: false, x: 0, y: 0 },
     experimental: { pelletMagnet: false },
     coopPlayers: {},
     coopInput: { x: 0, y: 0 },
+    coopEjectQueue: [],
     coopSnapshotTimer: 0,
     coopInputSendTimer: 0,
     network: {
@@ -578,6 +620,23 @@ input[type="text"] {
     };
   }
 
+  function randomPointNear(entity, maxDistance = 520) {
+    if (!entity) return randomPoint();
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * maxDistance;
+    return {
+      x: clamp(entity.x + Math.cos(angle) * dist, 0, WORLD.width),
+      y: clamp(entity.y + Math.sin(angle) * dist, 0, WORLD.height)
+    };
+  }
+
+  function randomPointNearAnyCoopPlayer(maxDistance = 700) {
+    const players = [state.player, ...Object.values(state.coopPlayers)].filter(Boolean);
+    if (!players.length) return randomPoint();
+    const target = players[Math.floor(Math.random() * players.length)];
+    return randomPointNear(target, maxDistance);
+  }
+
   function syncCamera() {
     if (!state.player) return;
     const maxCamX = Math.max(0, WORLD.width - canvas.width);
@@ -614,6 +673,7 @@ input[type="text"] {
       y: point.y,
       radius: bonus ? 6.5 : 5,
       value: bonus ? 22 : 10,
+      massGain: bonus ? 1.05 : 0.75,
       kind: bonus ? "bonus" : "normal",
       color: bonus ? "#ffd166" : "#4dd7a8"
     });
@@ -673,6 +733,9 @@ input[type="text"] {
       if (!state.network.connected) parts.push("офлайн");
       else parts.push(isCoopHost() ? "хост" : "клиент");
     }
+    if (state.desktopPositionLock.enabled) {
+      parts.push("позиция зафиксирована");
+    }
     statusLine.textContent = `Статус: ${parts.join(" | ")}`;
     updateJoystickVisibility();
   }
@@ -680,6 +743,7 @@ input[type="text"] {
   function updateJoystickVisibility() {
     const show = state.isMobile && state.running && !state.paused && !state.gameOver;
     joystick.style.display = show ? "block" : "none";
+    mobileActions.style.display = show ? "block" : "none";
     if (!show) {
       resetJoystick();
     }
@@ -825,6 +889,28 @@ input[type="text"] {
       return;
     }
 
+    if (msg.type === "spawn_pellets" && isCoopHost() && state.running) {
+      const mode = MODES[state.selectedMode];
+      if (!Array.isArray(msg.pellets)) return;
+      for (const p of msg.pellets) {
+        if (state.pellets.length >= mode.pelletTarget) break;
+        const x = Number(p.x);
+        const y = Number(p.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        spawnPellet(clamp(x, 0, WORLD.width), clamp(y, 0, WORLD.height), Boolean(p.bonus));
+      }
+      return;
+    }
+
+    if (msg.type === "eject_mass" && isCoopHost() && state.running) {
+      state.coopEjectQueue.push({
+        from: String(msg.from || ""),
+        x: Number(msg.x) || 0,
+        y: Number(msg.y) || 0
+      });
+      return;
+    }
+
     if (msg.type === "snapshot" && isCoopClient()) {
       state.score = msg.score || 0;
       if (Array.isArray(msg.pellets)) state.pellets = msg.pellets;
@@ -927,7 +1013,9 @@ input[type="text"] {
     state.shieldTimer = 0;
     state.lastTime = performance.now();
     state.mouse.active = false;
+    state.desktopPositionLock.enabled = false;
     state.coopPlayers = {};
+    state.coopEjectQueue = [];
     state.coopSnapshotTimer = 0;
     state.coopInputSendTimer = 0;
 
@@ -935,8 +1023,21 @@ input[type="text"] {
       for (let i = 0; i < mode.startBots; i++) {
         spawnBot();
       }
-      for (let i = 0; i < mode.pelletTarget; i++) {
-        spawnPellet();
+      if (isCoopMode()) {
+        for (let i = 0; i < mode.pelletTarget; i++) {
+          const p = randomPoint();
+          spawnPellet(p.x, p.y);
+        }
+      } else {
+        // Make early game readable: most pellets appear near the player first.
+        const nearCount = Math.floor(mode.pelletTarget * 0.7);
+        for (let i = 0; i < nearCount; i++) {
+          const p = randomPointNear(state.player, 650);
+          spawnPellet(p.x, p.y);
+        }
+        for (let i = nearCount; i < mode.pelletTarget; i++) {
+          spawnPellet();
+        }
       }
     }
 
@@ -1066,6 +1167,16 @@ input[type="text"] {
     const player = state.player;
     if (!player) return;
 
+    if (!state.isMobile && state.desktopPositionLock.enabled) {
+      player.x = state.desktopPositionLock.x;
+      player.y = state.desktopPositionLock.y;
+      player.vx = 0;
+      player.vy = 0;
+      state.coopInput.x = 0;
+      state.coopInput.y = 0;
+      return;
+    }
+
     let mx = 0;
     let my = 0;
 
@@ -1168,7 +1279,8 @@ input[type="text"] {
     for (let i = state.pellets.length - 1; i >= 0; i--) {
       const pellet = state.pellets[i];
       if (distance(player, pellet) < player.radius + pellet.radius) {
-        player.radius += 0.75;
+        const gain = Number(pellet.massGain) || 0.75;
+        player.radius += gain;
         state.score += pellet.value;
         state.pellets.splice(i, 1);
       }
@@ -1178,7 +1290,8 @@ input[type="text"] {
       for (let i = state.pellets.length - 1; i >= 0; i--) {
         const pellet = state.pellets[i];
         if (distance(bot, pellet) < bot.radius + pellet.radius) {
-          bot.radius += 0.55;
+          const gain = Number(pellet.massGain) || 0.55;
+          bot.radius += Math.max(0.4, gain * 0.8);
           state.pellets.splice(i, 1);
         }
       }
@@ -1194,7 +1307,8 @@ input[type="text"] {
       for (let i = state.pellets.length - 1; i >= 0; i--) {
         const pellet = state.pellets[i];
         if (distance(ally, pellet) < ally.radius + pellet.radius) {
-          ally.radius += 0.75;
+          const gain = Number(pellet.massGain) || 0.75;
+          ally.radius += gain;
           state.score += pellet.value;
           state.pellets.splice(i, 1);
         }
@@ -1353,11 +1467,30 @@ input[type="text"] {
     state.spawnTimer += dt;
     state.powerupTimer += dt;
 
-    if (state.pellets.length < mode.pelletTarget && state.spawnTimer > 0.03) {
+    const spawnInterval = isCoopMode() ? 0.018 : 0.03;
+    const spawnBurst = isCoopMode() ? 2 : 1;
+    if (state.pellets.length < mode.pelletTarget && state.spawnTimer > spawnInterval) {
       state.spawnTimer = 0;
-      spawnPellet();
-      if (Math.random() < 0.08) {
-        spawnPellet(null, null, true);
+      for (let n = 0; n < spawnBurst && state.pellets.length < mode.pelletTarget; n++) {
+        if (isCoopMode()) {
+          if (Math.random() < 0.8) {
+            const p = randomPointNearAnyCoopPlayer(900);
+            spawnPellet(p.x, p.y);
+          } else {
+            spawnPellet();
+          }
+        } else {
+          if (Math.random() < 0.75) {
+            const p = randomPointNear(state.player, 800);
+            spawnPellet(p.x, p.y);
+          } else {
+            spawnPellet();
+          }
+        }
+      }
+      if (Math.random() < (isCoopMode() ? 0.12 : 0.08)) {
+        const b = isCoopMode() ? randomPointNearAnyCoopPlayer(1000) : randomPointNear(state.player, 900);
+        spawnPellet(b.x, b.y, true);
       }
     }
 
@@ -1367,17 +1500,60 @@ input[type="text"] {
     }
   }
 
-  function ejectMass() {
-    const p = state.player;
-    if (!state.running || p.radius <= 16) return;
+  function spawnEjectedMass(x, y, massAmount) {
+    const gain = Math.max(0.6, Number(massAmount) || 0.6);
+    state.pellets.push({
+      x,
+      y,
+      radius: clamp(7 + gain * 1.7, 8, 16),
+      value: Math.round(gain * 20),
+      massGain: gain,
+      kind: "ejected",
+      color: "#ff9f43"
+    });
+  }
 
-    p.radius -= 2.4;
+  function ejectMassForEntity(entity, dirX, dirY) {
+    if (!entity || entity.radius <= 16) return false;
+    const massOut = clamp(entity.radius * 0.07, 1.2, 3.2);
+    entity.radius -= massOut;
+    const len = Math.hypot(dirX, dirY);
+    const nx = len > 0.001 ? dirX / len : Math.cos(Math.random() * Math.PI * 2);
+    const ny = len > 0.001 ? dirY / len : Math.sin(Math.random() * Math.PI * 2);
+    const x = clamp(entity.x + nx * (entity.radius + 20), 0, WORLD.width);
+    const y = clamp(entity.y + ny * (entity.radius + 20), 0, WORLD.height);
+    spawnEjectedMass(x, y, massOut);
+    return true;
+  }
+
+  function processCoopEjectQueueHost() {
+    if (!isCoopHost() || !state.coopEjectQueue.length) return;
+    const maxPerTick = 8;
+    for (let i = 0; i < maxPerTick && state.coopEjectQueue.length; i++) {
+      const req = state.coopEjectQueue.shift();
+      const entity = req.from === state.network.id ? state.player : state.coopPlayers[req.from];
+      if (!entity) continue;
+      ejectMassForEntity(entity, req.x, req.y);
+    }
+  }
+
+  function triggerEjectMassAction() {
+    if (!state.running || state.paused || !state.player) return;
+
+    if (isCoopMode()) {
+      networkSend({
+        type: "eject_mass",
+        x: state.coopInput.x || 0,
+        y: state.coopInput.y || 0,
+        name: state.network.name
+      });
+      return;
+    }
+
     const worldMouse = screenToWorld(state.mouse.x, state.mouse.y);
-    const ang = Math.atan2(worldMouse.y - p.y, worldMouse.x - p.x) || Math.random() * Math.PI * 2;
-    const x = p.x + Math.cos(ang) * (p.radius + 18);
-    const y = p.y + Math.sin(ang) * (p.radius + 18);
-    spawnPellet(clamp(x, 0, WORLD.width), clamp(y, 0, WORLD.height), true);
-    state.score = Math.max(0, state.score - 8);
+    if (ejectMassForEntity(state.player, worldMouse.x - state.player.x, worldMouse.y - state.player.y)) {
+      state.score = Math.max(0, state.score - 8);
+    }
   }
 
   function drawBackground() {
@@ -1534,7 +1710,7 @@ input[type="text"] {
           moveBots(dt);
           applyAgarSoftCollisions();
           applyPelletMagnet(dt);
-          spawnSystems(dt);
+          processCoopEjectQueueHost();
           handlePelletEats(dt);
           handleCoopPelletEatsHost();
           handlePowerups(dt);
@@ -1582,6 +1758,17 @@ input[type="text"] {
     state.mouse.active = true;
   });
 
+  canvas.addEventListener("mousedown", (event) => {
+    if (event.button !== 1 || state.isMobile || !state.player) return;
+    event.preventDefault();
+    state.desktopPositionLock.enabled = !state.desktopPositionLock.enabled;
+    if (state.desktopPositionLock.enabled) {
+      state.desktopPositionLock.x = state.player.x;
+      state.desktopPositionLock.y = state.player.y;
+    }
+    updateHud();
+  });
+
   joystick.addEventListener("touchstart", (event) => {
     const t = event.changedTouches[0];
     state.joystick.active = true;
@@ -1612,6 +1799,15 @@ input[type="text"] {
 
   joystick.addEventListener("touchcancel", resetJoystick, { passive: true });
 
+  mobileEject.addEventListener("touchstart", (event) => {
+    triggerEjectMassAction();
+    event.preventDefault();
+  }, { passive: false });
+
+  mobileEject.addEventListener("click", () => {
+    triggerEjectMassAction();
+  });
+
   window.addEventListener("keydown", (event) => {
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
 
@@ -1624,7 +1820,7 @@ input[type="text"] {
     }
 
     if (key === "q") {
-      ejectMass();
+      triggerEjectMassAction();
       return;
     }
 
