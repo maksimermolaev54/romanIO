@@ -785,6 +785,7 @@ input[type="text"] {
     waveTimer: 0,
     boostTimer: 0,
     superSpeedTimer: 0,
+    beerDarkTimer: 0,
     shieldTimer: 0,
     spawnTimer: 0,
     powerupTimer: 0,
@@ -830,6 +831,8 @@ input[type="text"] {
   playerImage.src = "dadasereza.png";
   const pelletImage = new Image();
   pelletImage.src = "nepivo.png";
+  const cakeImage = new Image();
+  cakeImage.src = "tortik.png";
   let hasCustomImage = false;
 
   function resizeCanvas() {
@@ -973,14 +976,15 @@ input[type="text"] {
       point = randomPoint();
     }
     const normalColor = NORMAL_PELLET_COLORS[Math.floor(Math.random() * NORMAL_PELLET_COLORS.length)];
+    const isBeerCake = !bonus && state.selectedMode === "beer_party" && Math.random() < 0.2;
     state.pellets.push({
       x: point.x,
       y: point.y,
-      radius: bonus ? 6.5 : 5,
-      value: bonus ? 22 : 10,
-      massGain: bonus ? 1.05 : 0.75,
-      kind: bonus ? "bonus" : "normal",
-      color: bonus ? "#ffd166" : normalColor
+      radius: bonus ? 6.5 : isBeerCake ? 6.2 : 5,
+      value: bonus ? 22 : isBeerCake ? 16 : 10,
+      massGain: bonus ? 1.05 : isBeerCake ? 0.9 : 0.75,
+      kind: bonus ? "bonus" : isBeerCake ? "cake" : "normal",
+      color: bonus ? "#ffd166" : isBeerCake ? "#ff8dd1" : normalColor
     });
   }
 
@@ -1466,6 +1470,7 @@ input[type="text"] {
     state.powerupTimer = 0;
     state.boostTimer = 0;
     state.superSpeedTimer = 0;
+    state.beerDarkTimer = 0;
     state.shieldTimer = 0;
     state.lastTime = performance.now();
     state.mouse.active = false;
@@ -1870,6 +1875,9 @@ input[type="text"] {
           gain *= 0.45;
         }
         player.radius += gain;
+        if (state.selectedMode === "beer_party" && pellet.kind === "cake") {
+          state.beerDarkTimer = Math.max(state.beerDarkTimer, 5);
+        }
         if (pellet.kind !== "ejected") {
           state.score += pellet.value;
         }
@@ -2059,6 +2067,7 @@ input[type="text"] {
 
     state.defense.healCooldown = Math.max(0, state.defense.healCooldown - dt);
     state.defense.hintTimer = Math.max(0, state.defense.hintTimer - dt);
+    state.beerDarkTimer = Math.max(0, state.beerDarkTimer - dt);
 
     if (state.selectedMode === "beer_defense") {
       const waveParams = getDefenseWaveParams(state.defense.wave);
@@ -2335,6 +2344,11 @@ input[type="text"] {
       const sx = toScreenX(pellet.x);
       const sy = toScreenY(pellet.y);
       const sr = toScreenRadius(pellet.radius);
+      if (beerMode && pellet.kind === "cake" && cakeImage.complete && cakeImage.naturalWidth > 0) {
+        const size = sr * 3.1;
+        ctx.drawImage(cakeImage, sx - size / 2, sy - size / 2, size, size);
+        continue;
+      }
       if (beerMode && pellet.kind === "normal" && pelletImage.complete && pelletImage.naturalWidth > 0) {
         const size = sr * 2.8;
         ctx.drawImage(pelletImage, sx - size / 2, sy - size / 2, size, size);
@@ -2406,6 +2420,26 @@ input[type="text"] {
     }
   }
 
+  function drawBeerDarkness() {
+    if (state.selectedMode !== "beer_party" || state.beerDarkTimer <= 0 || !state.player) return;
+    const px = toScreenX(state.player.x);
+    const py = toScreenY(state.player.y);
+    const holeRadius = toScreenRadius(120);
+
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.86)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = "destination-out";
+    const g = ctx.createRadialGradient(px, py, holeRadius * 0.45, px, py, holeRadius);
+    g.addColorStop(0, "rgba(0, 0, 0, 1)");
+    g.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(px, py, holeRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function render() {
     drawBackground();
     if (!state.player) return;
@@ -2416,6 +2450,7 @@ input[type="text"] {
     if (isCoopMode()) {
       drawCoopPlayers();
     }
+    drawBeerDarkness();
     drawPlayer();
   }
 
