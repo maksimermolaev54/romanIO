@@ -76,6 +76,9 @@ canvas {
   bottom: 24px;
   z-index: 7;
   display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
 }
 
 #mobileEject {
@@ -89,6 +92,31 @@ canvas {
   font-weight: 800;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
   touch-action: none;
+}
+
+.mobileSkill {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #071221;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  touch-action: none;
+  display: none;
+}
+
+#mobileStun {
+  background: rgba(144, 181, 255, 0.9);
+}
+
+#mobileSpeed {
+  background: rgba(126, 240, 204, 0.95);
+}
+
+#mobileDash {
+  background: rgba(255, 222, 115, 0.95);
 }
 
 #joystickStick {
@@ -135,6 +163,22 @@ canvas {
   color: var(--gold);
 }
 
+#pauseExitButton {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(8, 19, 33, 0.78);
+  display: none;
+}
+
 #menu,
 #gameOver {
   position: fixed;
@@ -143,6 +187,8 @@ canvas {
   display: grid;
   place-items: center;
   background: linear-gradient(160deg, rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0.7));
+  overflow-y: auto;
+  padding: 12px;
 }
 
 #gameOver {
@@ -157,6 +203,19 @@ canvas {
   display: none;
   place-items: center;
   background: linear-gradient(160deg, rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.74));
+  overflow-y: auto;
+  padding: 12px;
+}
+
+#pauseMenu {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  place-items: center;
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.74));
+  overflow-y: auto;
+  padding: 12px;
 }
 
 .panel {
@@ -272,6 +331,34 @@ input[type="text"] {
   line-height: 1.45;
 }
 
+#boosterPanel {
+  margin-top: 12px;
+  display: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.boosterCard {
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.boosterTitle {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.boosterDesc {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 @media (max-width: 640px) {
   #menu,
   #gameOver,
@@ -323,6 +410,12 @@ input[type="text"] {
     font-size: 14px;
   }
 
+  .mobileSkill {
+    width: 66px;
+    height: 66px;
+    font-size: 12px;
+  }
+
   .menu-grid {
     grid-template-columns: 1fr;
   }
@@ -344,7 +437,13 @@ input[type="text"] {
 <body>
 <canvas id="gameCanvas"></canvas>
 <div id="joystick"><div id="joystickStick"></div></div>
-<div id="mobileActions"><button id="mobileEject" type="button">Q / Eject</button></div>
+<div id="mobileActions">
+  <button id="mobileStun" class="mobileSkill" type="button">STUN</button>
+  <button id="mobileSpeed" class="mobileSkill" type="button">SPEED</button>
+  <button id="mobileDash" class="mobileSkill" type="button">DASH</button>
+  <button id="mobileEject" type="button">Q / Eject</button>
+</div>
+<button id="pauseExitButton" type="button">Пауза / В меню</button>
 
 <div id="hud" aria-live="polite">
   <div class="hud-card">
@@ -380,6 +479,10 @@ input[type="text"] {
       <div class="mode-card" data-mode="beer_party">
         <div class="mode-title">Пивная вечеринка</div>
         <div class="mode-desc">Еда на карте заменяется на `nepivo.png`. Весёлый визуальный режим.</div>
+      </div>
+      <div class="mode-card" data-mode="beer_defense">
+        <div class="mode-title">Защита пива</div>
+        <div class="mode-desc">Защищай пивное ядро в центре карты от волн злых ботов.</div>
       </div>
       <div class="mode-card" data-mode="coop_online">
         <div class="mode-title">Кооп онлайн</div>
@@ -424,11 +527,38 @@ input[type="text"] {
 
     <div class="row">
       <button class="btn" id="playButton">Старт</button>
+      <button class="btn alt" id="openBoosterShop">Бустеры</button>
       <button class="btn alt" id="clearBest">Сбросить рекорд</button>
     </div>
 
+    <div id="boosterPanel">
+      <div class="hud-label">Магазин бустеров (покупка за очки бустеров)</div>
+      <div id="boosterClassicScore" class="boosterDesc">Доступно: 0</div>
+
+      <div class="boosterCard">
+        <div class="boosterTitle">1) Оглушение бота - 1500</div>
+        <div class="boosterDesc">Оглушает ближайшего бота на 10 секунд. 3 использования. Активация только кнопкой STUN в игре.</div>
+        <button class="btn alt" id="buyStun">Купить</button>
+        <div id="stunOwned" class="boosterDesc">Куплено: 0</div>
+      </div>
+
+      <div class="boosterCard">
+        <div class="boosterTitle">2) Супер скорость - 1500</div>
+        <div class="boosterDesc">Ускоряет игрока на 5 секунд на 200% (x3). 2 использования. Активация только кнопкой SPEED в игре.</div>
+        <button class="btn alt" id="buySpeed">Купить</button>
+        <div id="speedOwned" class="boosterDesc">Куплено: 0</div>
+      </div>
+
+      <div class="boosterCard">
+        <div class="boosterTitle">3) Повышенная масса - 2000</div>
+        <div class="boosterDesc">1 раз запускает следующий раунд со стартовой массой 150%.</div>
+        <button class="btn alt" id="buyMass">Купить</button>
+        <div id="massOwned" class="boosterDesc">Куплено: 0</div>
+      </div>
+    </div>
+
     <div class="kb">
-      Управление: мышь или WASD/стрелки. | Q: сбросить массу в еду | Shift: рывок | P: пауза
+      Управление: мышь или WASD/стрелки. | Shift: рывок | P: меню паузы (кроме коопа)
     </div>
   </div>
 </div>
@@ -461,6 +591,17 @@ input[type="text"] {
   </div>
 </div>
 
+<div id="pauseMenu">
+  <div class="panel">
+    <h2>Пауза</h2>
+    <p class="subtitle" style="margin-top:8px;">Игра остановлена.</p>
+    <div class="row" style="margin-top:18px;">
+      <button class="btn" id="pauseContinue">Продолжить игру</button>
+      <button class="btn alt" id="pauseExit">Выйти</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (() => {
   const canvas = document.getElementById("gameCanvas");
@@ -469,13 +610,25 @@ input[type="text"] {
   const menu = document.getElementById("menu");
   const gameOverPanel = document.getElementById("gameOver");
   const experimentalMenu = document.getElementById("experimentalMenu");
+  const pauseMenu = document.getElementById("pauseMenu");
   const playButton = document.getElementById("playButton");
   const retryButton = document.getElementById("retryButton");
   const backMenuButton = document.getElementById("backMenuButton");
   const clearBestButton = document.getElementById("clearBest");
+  const openBoosterShopButton = document.getElementById("openBoosterShop");
+  const boosterPanel = document.getElementById("boosterPanel");
+  const boosterClassicScore = document.getElementById("boosterClassicScore");
+  const buyStunButton = document.getElementById("buyStun");
+  const buySpeedButton = document.getElementById("buySpeed");
+  const buyMassButton = document.getElementById("buyMass");
+  const stunOwned = document.getElementById("stunOwned");
+  const speedOwned = document.getElementById("speedOwned");
+  const massOwned = document.getElementById("massOwned");
   const expMagnet = document.getElementById("expMagnet");
   const expApplyButton = document.getElementById("expApply");
   const expCloseButton = document.getElementById("expClose");
+  const pauseContinueButton = document.getElementById("pauseContinue");
+  const pauseExitMenuButton = document.getElementById("pauseExit");
   const playerImageInput = document.getElementById("playerImage");
   const coopControls = document.getElementById("coopControls");
   const coopStatusRow = document.getElementById("coopStatusRow");
@@ -494,10 +647,14 @@ input[type="text"] {
   const joystickStick = document.getElementById("joystickStick");
   const mobileActions = document.getElementById("mobileActions");
   const mobileEject = document.getElementById("mobileEject");
+  const mobileStun = document.getElementById("mobileStun");
+  const mobileSpeed = document.getElementById("mobileSpeed");
+  const mobileDash = document.getElementById("mobileDash");
   const scoreValue = document.getElementById("scoreValue");
   const modeValue = document.getElementById("modeValue");
   const bestValue = document.getElementById("bestValue");
   const statusLine = document.getElementById("statusLine");
+  const pauseExitButton = document.getElementById("pauseExitButton");
   const gameOverTitle = document.getElementById("gameOverTitle");
   const gameOverText = document.getElementById("gameOverText");
   const COOP_WS_URL = "wss://romanio-production.up.railway.app";
@@ -539,6 +696,15 @@ input[type="text"] {
       duration: null,
       waveEvery: null
     },
+    beer_defense: {
+      label: "Защита пива",
+      startBots: 0,
+      pelletTarget: 120,
+      botBaseSpeed: 118,
+      scoreFromTime: false,
+      duration: null,
+      waveEvery: null
+    },
     coop_online: {
       label: "Кооп онлайн",
       startBots: 0,
@@ -556,10 +722,14 @@ input[type="text"] {
     gridStep: 50
   };
 
+  const NORMAL_PELLET_COLORS = ["#4dd7a8", "#5ec8ff", "#ffb35c", "#ff7aa2", "#c1ff6b", "#b39bff"];
+
   const state = {
     selectedMode: "classic",
     running: false,
     paused: false,
+    pauseMenuOpen: false,
+    coopLocalPaused: false,
     gameOver: false,
     player: null,
     bots: [],
@@ -569,12 +739,13 @@ input[type="text"] {
     elapsed: 0,
     waveTimer: 0,
     boostTimer: 0,
+    superSpeedTimer: 0,
     shieldTimer: 0,
     spawnTimer: 0,
     powerupTimer: 0,
     keys: new Set(),
     mouse: { x: 0, y: 0, active: false },
-    camera: { x: 0, y: 0 },
+    camera: { x: 0, y: 0, zoom: 1 },
     isMobile: false,
     joystick: { active: false, x: 0, y: 0, maxDist: 42, touchId: null },
     desktopPositionLock: { enabled: false, x: 0, y: 0 },
@@ -584,6 +755,13 @@ input[type="text"] {
     coopEjectQueue: [],
     coopSnapshotTimer: 0,
     coopInputSendTimer: 0,
+    defense: {
+      core: null,
+      botSpawnTimer: 0,
+      wave: 1,
+      phase: "wave",
+      phaseTimer: 0
+    },
     network: {
       ws: null,
       connected: false,
@@ -596,6 +774,8 @@ input[type="text"] {
     clearBestClickTimer: null,
     aiId: 1,
     bestScores: loadBestScores(),
+    boosterPoints: loadBoosterPoints(),
+    boosters: loadBoosters(),
     lastTime: 0
   };
 
@@ -647,17 +827,44 @@ input[type="text"] {
 
   function syncCamera() {
     if (!state.player) return;
-    const maxCamX = Math.max(0, WORLD.width - canvas.width);
-    const maxCamY = Math.max(0, WORLD.height - canvas.height);
-    state.camera.x = clamp(state.player.x - canvas.width / 2, 0, maxCamX);
-    state.camera.y = clamp(state.player.y - canvas.height / 2, 0, maxCamY);
+    const zoomOutProgress = clamp((state.score - 5000) / 30000, 0, 1);
+    state.camera.zoom = 1 - zoomOutProgress * 0.45;
+    const visibleWorldWidth = canvas.width / state.camera.zoom;
+    const visibleWorldHeight = canvas.height / state.camera.zoom;
+    const maxCamX = Math.max(0, WORLD.width - visibleWorldWidth);
+    const maxCamY = Math.max(0, WORLD.height - visibleWorldHeight);
+    state.camera.x = clamp(state.player.x - visibleWorldWidth / 2, 0, maxCamX);
+    state.camera.y = clamp(state.player.y - visibleWorldHeight / 2, 0, maxCamY);
   }
 
   function screenToWorld(screenX, screenY) {
+    const zoom = state.camera.zoom || 1;
     return {
-      x: screenX + state.camera.x,
-      y: screenY + state.camera.y
+      x: state.camera.x + screenX / zoom,
+      y: state.camera.y + screenY / zoom
     };
+  }
+
+  function toScreenX(worldX) {
+    return (worldX - state.camera.x) * (state.camera.zoom || 1);
+  }
+
+  function toScreenY(worldY) {
+    return (worldY - state.camera.y) * (state.camera.zoom || 1);
+  }
+
+  function toScreenRadius(worldRadius) {
+    return worldRadius * (state.camera.zoom || 1);
+  }
+
+  function pointInsideAnyPlayer(x, y, padding = 10) {
+    const players = [state.player, ...Object.values(state.coopPlayers)].filter(Boolean);
+    for (const p of players) {
+      if (Math.hypot(x - p.x, y - p.y) < p.radius + padding) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function spawnBot(boost = 0) {
@@ -670,12 +877,55 @@ input[type="text"] {
       radius,
       vx: 0,
       vy: 0,
+      stunTimer: 0,
       color: `hsl(${Math.floor(10 + Math.random() * 30)}, 85%, ${45 + Math.random() * 10}%)`
     });
   }
 
+  function spawnBotAroundDefenseCore(boost = 0) {
+    const core = state.defense.core;
+    if (!core) return;
+    const waveParams = getDefenseWaveParams(state.defense.wave || 1);
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 360 + Math.random() * 260;
+    const p = {
+      x: clamp(core.x + Math.cos(angle) * dist, 0, WORLD.width),
+      y: clamp(core.y + Math.sin(angle) * dist, 0, WORLD.height)
+    };
+    const radius = (18 + Math.random() * 14 + boost) * waveParams.spawnSizeMult;
+    state.bots.push({
+      id: state.aiId++,
+      x: p.x,
+      y: p.y,
+      radius,
+      vx: 0,
+      vy: 0,
+      stunTimer: 0,
+      color: `hsl(${Math.floor(0 + Math.random() * 25)}, 85%, ${42 + Math.random() * 10}%)`
+    });
+  }
+
+  function getDefenseWaveParams(wave) {
+    const w = Math.max(1, Number(wave) || 1);
+    const idx = w - 1;
+    return {
+      speedMult: Math.min(1.95, 0.78 + idx * 0.09),
+      spawnSizeMult: Math.min(2.1, 0.8 + idx * 0.12),
+      targetPlayerScale: Math.min(1.25, 0.82 + idx * 0.06),
+      minRadius: Math.min(90, 24 + idx * 3),
+      spawnInterval: Math.max(0.58, 2.1 - idx * 0.16),
+      maxBots: Math.min(28, 5 + idx * 2),
+      spawnBoost: 1 + idx * 1.6
+    };
+  }
+
   function spawnPellet(x = null, y = null, bonus = false) {
-    const point = x === null ? randomPoint() : { x, y };
+    let point = x === null ? randomPoint() : { x, y };
+    const avoidPadding = bonus ? 14 : 10;
+    for (let i = 0; i < 16 && pointInsideAnyPlayer(point.x, point.y, avoidPadding); i++) {
+      point = randomPoint();
+    }
+    const normalColor = NORMAL_PELLET_COLORS[Math.floor(Math.random() * NORMAL_PELLET_COLORS.length)];
     state.pellets.push({
       x: point.x,
       y: point.y,
@@ -683,7 +933,7 @@ input[type="text"] {
       value: bonus ? 22 : 10,
       massGain: bonus ? 1.05 : 0.75,
       kind: bonus ? "bonus" : "normal",
-      color: bonus ? "#ffd166" : "#4dd7a8"
+      color: bonus ? "#ffd166" : normalColor
     });
   }
 
@@ -702,7 +952,7 @@ input[type="text"] {
   function loadBestScores() {
     const raw = localStorage.getItem("romanio_best_v2");
     if (!raw) {
-      return { classic: 0, survival: 0, time_attack: 0, beer_party: 0, coop_online: 0 };
+      return { classic: 0, survival: 0, time_attack: 0, beer_party: 0, beer_defense: 0, coop_online: 0 };
     }
     try {
       const parsed = JSON.parse(raw);
@@ -711,15 +961,74 @@ input[type="text"] {
         survival: Number(parsed.survival) || 0,
         time_attack: Number(parsed.time_attack) || 0,
         beer_party: Number(parsed.beer_party) || 0,
+        beer_defense: Number(parsed.beer_defense) || 0,
         coop_online: Number(parsed.coop_online) || 0
       };
     } catch {
-      return { classic: 0, survival: 0, time_attack: 0, beer_party: 0, coop_online: 0 };
+      return { classic: 0, survival: 0, time_attack: 0, beer_party: 0, beer_defense: 0, coop_online: 0 };
     }
   }
 
   function saveBestScores() {
     localStorage.setItem("romanio_best_v2", JSON.stringify(state.bestScores));
+  }
+
+  function loadBoosterPoints() {
+    const raw = localStorage.getItem("romanio_booster_points_v1");
+    return Math.max(0, Number(raw) || 0);
+  }
+
+  function saveBoosterPoints() {
+    localStorage.setItem("romanio_booster_points_v1", String(Math.floor(state.boosterPoints)));
+  }
+
+  function loadBoosters() {
+    const fallback = { stun: 0, speed: 0, mass: 0 };
+    const raw = localStorage.getItem("romanio_boosters_v1");
+    if (!raw) return fallback;
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        stun: Math.max(0, Number(parsed.stun) || 0),
+        speed: Math.max(0, Number(parsed.speed) || 0),
+        mass: Math.max(0, Number(parsed.mass) || 0)
+      };
+    } catch {
+      return fallback;
+    }
+  }
+
+  function saveBoosters() {
+    localStorage.setItem("romanio_boosters_v1", JSON.stringify(state.boosters));
+  }
+
+  function updateBoosterPanel() {
+    boosterClassicScore.textContent = `Доступно очков: ${Math.floor(state.boosterPoints)}`;
+    stunOwned.textContent = `Куплено: ${state.boosters.stun}`;
+    speedOwned.textContent = `Куплено: ${state.boosters.speed}`;
+    massOwned.textContent = `Куплено: ${state.boosters.mass}`;
+    buyStunButton.disabled = state.boosterPoints < 1500;
+    buySpeedButton.disabled = state.boosterPoints < 1500;
+    buyMassButton.disabled = state.boosterPoints < 2000;
+    updateMobileSkillButtons();
+  }
+
+  function spendBoosterPoints(cost) {
+    if (state.boosterPoints < cost) return false;
+    state.boosterPoints -= cost;
+    saveBoosterPoints();
+    return true;
+  }
+
+  function buyBooster(kind, cost, amount) {
+    if (!spendBoosterPoints(cost)) {
+      alert("Недостаточно очков бустеров.");
+      return;
+    }
+    state.boosters[kind] += amount;
+    saveBoosters();
+    updateBoosterPanel();
+    updateHud();
   }
 
   function updateHud() {
@@ -734,8 +1043,14 @@ input[type="text"] {
     if (state.boostTimer > 0) {
       parts.push(`Ускорение ${state.boostTimer.toFixed(1)}с`);
     }
+    if (state.superSpeedTimer > 0) {
+      parts.push(`Супер-скорость ${state.superSpeedTimer.toFixed(1)}с`);
+    }
     if (!parts.length) {
       parts.push(state.paused ? "Пауза" : "В игре");
+    }
+    if (isCoopMode() && state.pauseMenuOpen) {
+      parts.push("локальная пауза");
     }
     if (isCoopMode()) {
       if (!state.network.connected) parts.push("офлайн");
@@ -744,17 +1059,44 @@ input[type="text"] {
     if (state.desktopPositionLock.enabled) {
       parts.push("позиция зафиксирована");
     }
+    if (state.selectedMode === "beer_defense" && state.defense.core) {
+      parts.push(`Ядро HP ${Math.ceil(state.defense.core.hp)}/${state.defense.core.maxHp}`);
+      if (state.defense.phase === "wave") {
+        if (state.defense.phaseTimer >= 60) {
+          parts.push(`Волна ${state.defense.wave}: Убейте всех ботов`);
+        } else {
+          const left = Math.max(0, 60 - state.defense.phaseTimer);
+          parts.push(`Волна ${state.defense.wave} (${left.toFixed(0)}с)`);
+        }
+      } else {
+        const left = Math.max(0, 15 - state.defense.phaseTimer);
+        parts.push(`Перерыв ${left.toFixed(0)}с`);
+      }
+    }
     statusLine.textContent = `Статус: ${parts.join(" | ")}`;
+    updateBoosterPanel();
     updateJoystickVisibility();
   }
 
   function updateJoystickVisibility() {
-    const show = state.isMobile && state.running && !state.paused && !state.gameOver;
-    joystick.style.display = show ? "block" : "none";
-    mobileActions.style.display = show ? "block" : "none";
+    const show = state.running && !state.paused && !state.gameOver && !state.pauseMenuOpen;
+    joystick.style.display = state.isMobile && show ? "block" : "none";
+    mobileActions.style.display = show ? "flex" : "none";
+    pauseExitButton.style.display = state.running && !state.gameOver ? "block" : "none";
+    updateMobileSkillButtons();
     if (!show) {
       resetJoystick();
     }
+  }
+
+  function updateMobileSkillButtons() {
+    const show = state.running && !state.paused && !state.gameOver;
+    mobileStun.style.display = show && state.boosters.stun > 0 ? "block" : "none";
+    mobileSpeed.style.display = show && state.boosters.speed > 0 ? "block" : "none";
+    mobileDash.style.display = show && state.isMobile ? "block" : "none";
+    mobileEject.style.display = show && state.isMobile ? "block" : "none";
+    mobileStun.textContent = `STUN ${state.boosters.stun}`;
+    mobileSpeed.textContent = `SPEED ${state.boosters.speed}`;
   }
 
   function detectMobileControls() {
@@ -1007,6 +1349,8 @@ input[type="text"] {
 
     state.running = true;
     state.paused = false;
+    state.pauseMenuOpen = false;
+    state.coopLocalPaused = false;
     state.gameOver = false;
     state.player = createPlayer();
     state.bots = [];
@@ -1018,6 +1362,7 @@ input[type="text"] {
     state.spawnTimer = 0;
     state.powerupTimer = 0;
     state.boostTimer = 0;
+    state.superSpeedTimer = 0;
     state.shieldTimer = 0;
     state.lastTime = performance.now();
     state.mouse.active = false;
@@ -1026,8 +1371,34 @@ input[type="text"] {
     state.coopEjectQueue = [];
     state.coopSnapshotTimer = 0;
     state.coopInputSendTimer = 0;
+    state.defense.core = null;
+    state.defense.botSpawnTimer = 0;
+    state.defense.wave = 1;
+    state.defense.phase = "wave";
+    state.defense.phaseTimer = 0;
+
+    if (state.boosters.mass > 0) {
+      state.player.radius *= 1.5;
+      state.boosters.mass -= 1;
+      saveBoosters();
+    }
+
+    if (state.selectedMode === "beer_defense") {
+      state.defense.core = {
+        x: WORLD.width / 2,
+        y: WORLD.height / 2,
+        radius: 52,
+        hp: 1000,
+        maxHp: 1000
+      };
+    }
 
     if (!isCoopMode() || isCoopHost()) {
+      if (state.selectedMode === "beer_defense") {
+        for (let i = 0; i < 4; i++) {
+          spawnBotAroundDefenseCore();
+        }
+      }
       for (let i = 0; i < mode.startBots; i++) {
         spawnBot();
       }
@@ -1051,6 +1422,7 @@ input[type="text"] {
 
     menu.style.display = "none";
     gameOverPanel.style.display = "none";
+    pauseMenu.style.display = "none";
     syncCamera();
     updateHud();
   }
@@ -1058,6 +1430,9 @@ input[type="text"] {
   function finishGame(message, victory = false) {
     state.running = false;
     state.gameOver = true;
+    state.pauseMenuOpen = false;
+    state.coopLocalPaused = false;
+    pauseMenu.style.display = "none";
 
     if (state.score > state.bestScores[state.selectedMode]) {
       state.bestScores[state.selectedMode] = Math.floor(state.score);
@@ -1067,6 +1442,51 @@ input[type="text"] {
     gameOverTitle.textContent = victory ? "Отличный раунд" : "Игра окончена";
     gameOverText.textContent = `${message} Счёт: ${Math.floor(state.score)} | Рекорд: ${Math.floor(state.bestScores[state.selectedMode])}`;
     gameOverPanel.style.display = "grid";
+    updateHud();
+  }
+
+  function openPauseMenu() {
+    if (!state.running) return;
+    if (isCoopMode()) {
+      state.coopLocalPaused = true;
+      state.paused = false;
+    } else {
+      state.paused = true;
+    }
+    state.pauseMenuOpen = true;
+    pauseMenu.style.display = "grid";
+    updateHud();
+  }
+
+  function closePauseMenu() {
+    state.pauseMenuOpen = false;
+    pauseMenu.style.display = "none";
+  }
+
+  function continueFromPauseMenu() {
+    if (!state.pauseMenuOpen) return;
+    closePauseMenu();
+    state.paused = false;
+    state.coopLocalPaused = false;
+    updateHud();
+  }
+
+  function exitFromPauseMenu() {
+    if (!state.pauseMenuOpen) return;
+    const finalScore = Math.max(0, Math.floor(state.score));
+    if (finalScore > state.bestScores[state.selectedMode]) {
+      state.bestScores[state.selectedMode] = finalScore;
+      saveBestScores();
+    }
+    state.boosterPoints += finalScore;
+    saveBoosterPoints();
+    state.running = false;
+    state.paused = false;
+    state.coopLocalPaused = false;
+    state.gameOver = false;
+    closePauseMenu();
+    gameOverPanel.style.display = "none";
+    menu.style.display = "grid";
     updateHud();
   }
 
@@ -1171,9 +1591,43 @@ input[type="text"] {
     experimentalMenu.style.display = "grid";
   }
 
+  function activateStunBooster() {
+    if (!state.running || state.paused || state.pauseMenuOpen || state.boosters.stun <= 0 || !state.bots.length) return;
+    let nearest = null;
+    let bestDist = Infinity;
+    for (const bot of state.bots) {
+      const d = distance(state.player, bot);
+      if (d < bestDist) {
+        bestDist = d;
+        nearest = bot;
+      }
+    }
+    if (!nearest) return;
+    nearest.stunTimer = 10;
+    state.boosters.stun -= 1;
+    saveBoosters();
+    updateBoosterPanel();
+  }
+
+  function activateSpeedBooster() {
+    if (!state.running || state.paused || state.pauseMenuOpen || state.boosters.speed <= 0) return;
+    state.superSpeedTimer = Math.max(state.superSpeedTimer, 5);
+    state.boosters.speed -= 1;
+    saveBoosters();
+    updateBoosterPanel();
+  }
+
   function movePlayer(dt) {
     const player = state.player;
     if (!player) return;
+
+    if (isCoopMode() && state.coopLocalPaused) {
+      player.vx = 0;
+      player.vy = 0;
+      state.coopInput.x = 0;
+      state.coopInput.y = 0;
+      return;
+    }
 
     if (!state.isMobile && state.desktopPositionLock.enabled) {
       player.x = state.desktopPositionLock.x;
@@ -1212,7 +1666,9 @@ input[type="text"] {
     state.coopInput.x = mx;
     state.coopInput.y = my;
 
-    const speedFactor = state.boostTimer > 0 ? 1.28 : 1;
+    let speedFactor = 1;
+    if (state.boostTimer > 0) speedFactor *= 1.28;
+    if (state.superSpeedTimer > 0) speedFactor *= 3;
     applyEntityPhysics(player, mx, my, dt, speedFactor);
 
     if (isCoopClient()) {
@@ -1236,6 +1692,11 @@ input[type="text"] {
   function botSteerTarget(bot) {
     const player = state.player;
     if (!player) return { x: bot.x, y: bot.y, mood: "idle" };
+
+    if (state.selectedMode === "beer_defense" && state.defense.core) {
+      const core = state.defense.core;
+      return { x: core.x, y: core.y, mood: "assault" };
+    }
 
     const distToPlayer = distance(bot, player);
     if (bot.radius > player.radius * 1.08 && distToPlayer < 360) {
@@ -1269,6 +1730,14 @@ input[type="text"] {
   function moveBots(dt) {
     const mode = MODES[state.selectedMode];
     for (const bot of state.bots) {
+      bot.stunTimer = Math.max(0, (bot.stunTimer || 0) - dt);
+      if (bot.stunTimer > 0) {
+        bot.vx *= 0.9;
+        bot.vy *= 0.9;
+        bot.x += bot.vx * dt;
+        bot.y += bot.vy * dt;
+        continue;
+      }
       const target = botSteerTarget(bot);
       const dx = target.x - bot.x;
       const dy = target.y - bot.y;
@@ -1276,9 +1745,10 @@ input[type="text"] {
       const dirX = dx / len;
       const dirY = dy / len;
 
-      const moodMult = target.mood === "hunt" ? 1.08 : target.mood === "flee" ? 1.17 : 0.95;
+      const moodMult = target.mood === "hunt" ? 1.08 : target.mood === "flee" ? 1.17 : target.mood === "assault" ? 1.14 : 0.95;
       const modeFactor = mode.botBaseSpeed / 112;
-      applyEntityPhysics(bot, dirX, dirY, dt, moodMult * modeFactor);
+      const defenseSpeed = state.selectedMode === "beer_defense" ? getDefenseWaveParams(state.defense.wave).speedMult : 1;
+      applyEntityPhysics(bot, dirX, dirY, dt, moodMult * modeFactor * defenseSpeed);
     }
   }
 
@@ -1287,9 +1757,14 @@ input[type="text"] {
     for (let i = state.pellets.length - 1; i >= 0; i--) {
       const pellet = state.pellets[i];
       if (distance(player, pellet) < player.radius + pellet.radius) {
-        const gain = Number(pellet.massGain) || 0.75;
+        let gain = Number(pellet.massGain) || 0.75;
+        if (state.selectedMode === "beer_defense") {
+          gain *= 0.45;
+        }
         player.radius += gain;
-        state.score += pellet.value;
+        if (pellet.kind !== "ejected") {
+          state.score += pellet.value;
+        }
         state.pellets.splice(i, 1);
       }
     }
@@ -1317,7 +1792,9 @@ input[type="text"] {
         if (distance(ally, pellet) < ally.radius + pellet.radius) {
           const gain = Number(pellet.massGain) || 0.75;
           ally.radius += gain;
-          state.score += pellet.value;
+          if (pellet.kind !== "ejected") {
+            state.score += pellet.value;
+          }
           state.pellets.splice(i, 1);
         }
       }
@@ -1337,12 +1814,15 @@ input[type="text"] {
       if (!canTouch) continue;
 
       if (player.radius > bot.radius * 1.07) {
-        resolveEntityEat(player, bot, 0.32);
+        const gainFactor = state.selectedMode === "beer_defense" ? 0.036 : 0.32;
+        resolveEntityEat(player, bot, gainFactor);
         state.bots.splice(i, 1);
         state.score += 125;
-        setTimeout(() => {
-          if (state.running) spawnBot(2 + Math.random() * 6);
-        }, 900);
+        if (state.selectedMode !== "beer_defense") {
+          setTimeout(() => {
+            if (state.running) spawnBot(2 + Math.random() * 6);
+          }, 900);
+        }
       } else if (bot.radius > player.radius * 1.07) {
         if (state.shieldTimer > 0) {
           bot.x += (bot.x - player.x) * 0.15;
@@ -1352,6 +1832,28 @@ input[type="text"] {
           finishGame("Тебя поглотил бот.");
           return;
         }
+      }
+    }
+  }
+
+  function handleDefenseCore(dt) {
+    if (state.selectedMode !== "beer_defense") return;
+    const core = state.defense.core;
+    if (!core) return;
+
+    let attackers = 0;
+    for (const bot of state.bots) {
+      const d = distance(bot, core);
+      if (d < bot.radius + core.radius * 0.92) {
+        attackers += 1;
+      }
+    }
+
+    if (attackers > 0) {
+      const damagePerSecondPerBot = 19;
+      core.hp = Math.max(0, core.hp - attackers * damagePerSecondPerBot * dt);
+      if (core.hp <= 0) {
+        finishGame("Ядро пива уничтожено. Оборона провалена.");
       }
     }
   }
@@ -1369,9 +1871,11 @@ input[type="text"] {
           resolveEntityEat(targetPlayer, bot, 0.32);
           state.bots.splice(i, 1);
           state.score += 110;
-          setTimeout(() => {
-            if (state.running) spawnBot(2 + Math.random() * 6);
-          }, 900);
+          if (state.selectedMode !== "beer_defense") {
+            setTimeout(() => {
+              if (state.running) spawnBot(2 + Math.random() * 6);
+            }, 900);
+          }
         } else if (bot.radius > targetPlayer.radius * 1.07) {
           targetPlayer.radius = 30;
           const resp = randomPoint();
@@ -1438,11 +1942,61 @@ input[type="text"] {
     }
 
     state.boostTimer = Math.max(0, state.boostTimer - dt);
+    state.superSpeedTimer = Math.max(0, state.superSpeedTimer - dt);
     state.shieldTimer = Math.max(0, state.shieldTimer - dt);
   }
 
   function modeLogic(dt) {
     const mode = MODES[state.selectedMode];
+
+    if (state.selectedMode === "beer_defense") {
+      const waveParams = getDefenseWaveParams(state.defense.wave);
+      state.defense.phaseTimer += dt;
+
+      const playerRadius = state.player ? state.player.radius : 34;
+      const desiredBotRadius = Math.max(waveParams.minRadius, playerRadius * waveParams.targetPlayerScale);
+      for (const bot of state.bots) {
+        if (bot.radius < desiredBotRadius) {
+          bot.radius = Math.min(desiredBotRadius, bot.radius + dt * 0.62);
+        } else if (bot.radius > desiredBotRadius * 1.12) {
+          bot.radius = Math.max(desiredBotRadius, bot.radius - dt * 0.05);
+        }
+      }
+
+      if (state.defense.phase === "wave") {
+        state.defense.botSpawnTimer += dt;
+        const canSpawn = state.defense.phaseTimer < 60;
+        if (canSpawn && state.defense.botSpawnTimer >= waveParams.spawnInterval) {
+          state.defense.botSpawnTimer = 0;
+          if (state.bots.length < waveParams.maxBots) {
+            spawnBotAroundDefenseCore(waveParams.spawnBoost);
+          }
+        }
+
+        const waveTimeDone = state.defense.phaseTimer >= 60;
+        const allBotsCleared = state.bots.length === 0;
+        if (waveTimeDone && allBotsCleared) {
+          state.defense.phase = "break";
+          state.defense.phaseTimer = 0;
+          state.defense.botSpawnTimer = 0;
+        }
+      } else {
+        if (state.defense.phaseTimer >= 15) {
+          state.defense.phase = "wave";
+          state.defense.wave += 1;
+          state.defense.phaseTimer = 0;
+          state.defense.botSpawnTimer = 0;
+          const nextWaveParams = getDefenseWaveParams(state.defense.wave);
+          for (let i = 0; i < Math.min(4 + state.defense.wave, 10); i++) {
+            spawnBotAroundDefenseCore(nextWaveParams.spawnBoost);
+          }
+        }
+      }
+
+      if (state.defense.core) {
+        state.score += dt * 6;
+      }
+    }
 
     if (mode.scoreFromTime) {
       state.score += 14 * dt;
@@ -1546,7 +2100,7 @@ input[type="text"] {
   }
 
   function triggerEjectMassAction() {
-    if (!state.running || state.paused || !state.player) return;
+    if (!state.running || state.paused || state.pauseMenuOpen || !state.player) return;
 
     if (isCoopMode()) {
       networkSend({
@@ -1574,47 +2128,54 @@ input[type="text"] {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    const zoom = state.camera.zoom || 1;
+    const visibleWorldWidth = canvas.width / zoom;
+    const visibleWorldHeight = canvas.height / zoom;
+
     ctx.strokeStyle = "rgba(255,255,255,0.06)";
     ctx.lineWidth = 1;
     const step = WORLD.gridStep;
-    const startX = -(state.camera.x % step);
-    const startY = -(state.camera.y % step);
-    for (let x = startX; x < canvas.width; x += step) {
+    const firstGridX = Math.floor(state.camera.x / step) * step;
+    const firstGridY = Math.floor(state.camera.y / step) * step;
+    for (let x = firstGridX; x <= state.camera.x + visibleWorldWidth; x += step) {
+      const sx = toScreenX(x);
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
+      ctx.moveTo(sx, 0);
+      ctx.lineTo(sx, canvas.height);
       ctx.stroke();
     }
-    for (let y = startY; y < canvas.height; y += step) {
+    for (let y = firstGridY; y <= state.camera.y + visibleWorldHeight; y += step) {
+      const sy = toScreenY(y);
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
+      ctx.moveTo(0, sy);
+      ctx.lineTo(canvas.width, sy);
       ctx.stroke();
     }
 
-    const worldX = -state.camera.x;
-    const worldY = -state.camera.y;
+    const worldX = toScreenX(0);
+    const worldY = toScreenY(0);
     ctx.strokeStyle = "rgba(255,255,255,0.42)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(worldX, worldY, WORLD.width, WORLD.height);
+    ctx.lineWidth = clamp(2, 5 * zoom, 5);
+    ctx.strokeRect(worldX, worldY, WORLD.width * zoom, WORLD.height * zoom);
   }
 
   function drawCircleEntity(entity, color, label = "") {
-    const sx = entity.x - state.camera.x;
-    const sy = entity.y - state.camera.y;
+    const sx = toScreenX(entity.x);
+    const sy = toScreenY(entity.y);
+    const sr = toScreenRadius(entity.radius);
     ctx.beginPath();
-    ctx.arc(sx, sy, entity.radius, 0, Math.PI * 2);
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
-    ctx.lineWidth = 2;
+    ctx.lineWidth = clamp(1, 2 * (state.camera.zoom || 1), 2);
     ctx.strokeStyle = "rgba(255,255,255,0.25)";
     ctx.stroke();
 
     if (label) {
       ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.font = "bold 11px Segoe UI";
+      ctx.font = `bold ${clamp(9, 11 * (state.camera.zoom || 1), 14)}px Segoe UI`;
       ctx.textAlign = "center";
-      ctx.fillText(label, sx, sy + 4);
+      ctx.fillText(label, sx, sy + clamp(3, 4 * (state.camera.zoom || 1), 5));
     }
   }
 
@@ -1622,36 +2183,37 @@ input[type="text"] {
     const p = state.player;
     if (!p) return;
 
-    const px = p.x - state.camera.x;
-    const py = p.y - state.camera.y;
+    const px = toScreenX(p.x);
+    const py = toScreenY(p.y);
+    const pr = toScreenRadius(p.radius);
 
     if (state.shieldTimer > 0) {
       ctx.beginPath();
-      ctx.arc(px, py, p.radius + 7 + Math.sin(state.elapsed * 8) * 1.5, 0, Math.PI * 2);
+      ctx.arc(px, py, pr + toScreenRadius(7 + Math.sin(state.elapsed * 8) * 1.5), 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(125, 209, 255, 0.75)";
-      ctx.lineWidth = 4;
+      ctx.lineWidth = clamp(2, 4 * (state.camera.zoom || 1), 4);
       ctx.stroke();
     }
 
     ctx.save();
     ctx.beginPath();
-    ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
     ctx.clip();
 
     if ((hasCustomImage || (playerImage.complete && playerImage.naturalWidth > 0))) {
-      ctx.drawImage(playerImage, px - p.radius, py - p.radius, p.radius * 2, p.radius * 2);
+      ctx.drawImage(playerImage, px - pr, py - pr, pr * 2, pr * 2);
     } else {
-      const g = ctx.createRadialGradient(px - p.radius * 0.4, py - p.radius * 0.5, p.radius * 0.2, px, py, p.radius);
+      const g = ctx.createRadialGradient(px - pr * 0.4, py - pr * 0.5, pr * 0.2, px, py, pr);
       g.addColorStop(0, "#9ef8dd");
       g.addColorStop(1, "#36c99a");
       ctx.fillStyle = g;
-      ctx.fillRect(px - p.radius, py - p.radius, p.radius * 2, p.radius * 2);
+      ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
     }
 
     ctx.restore();
     ctx.beginPath();
-    ctx.arc(px, py, p.radius, 0, Math.PI * 2);
-    ctx.lineWidth = 2;
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.lineWidth = clamp(1, 2 * (state.camera.zoom || 1), 2);
     ctx.strokeStyle = "rgba(255,255,255,0.35)";
     ctx.stroke();
   }
@@ -1659,18 +2221,58 @@ input[type="text"] {
   function drawPellets() {
     const beerMode = state.selectedMode === "beer_party";
     for (const pellet of state.pellets) {
-      const sx = pellet.x - state.camera.x;
-      const sy = pellet.y - state.camera.y;
+      const sx = toScreenX(pellet.x);
+      const sy = toScreenY(pellet.y);
+      const sr = toScreenRadius(pellet.radius);
       if (beerMode && pellet.kind === "normal" && pelletImage.complete && pelletImage.naturalWidth > 0) {
-        const size = pellet.radius * 2.8;
+        const size = sr * 2.8;
         ctx.drawImage(pelletImage, sx - size / 2, sy - size / 2, size, size);
         continue;
       }
       ctx.beginPath();
-      ctx.arc(sx, sy, pellet.radius, 0, Math.PI * 2);
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
       ctx.fillStyle = pellet.color;
       ctx.fill();
     }
+  }
+
+  function drawDefenseCore() {
+    if (state.selectedMode !== "beer_defense" || !state.defense.core) return;
+    const core = state.defense.core;
+    const sx = toScreenX(core.x);
+    const sy = toScreenY(core.y);
+    const sr = toScreenRadius(core.radius);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.clip();
+    if (pelletImage.complete && pelletImage.naturalWidth > 0) {
+      ctx.drawImage(pelletImage, sx - sr, sy - sr, sr * 2, sr * 2);
+    } else {
+      ctx.fillStyle = "#ffcd5f";
+      ctx.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+    }
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.lineWidth = clamp(1, 3 * (state.camera.zoom || 1), 3);
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.stroke();
+
+    const hpRatio = core.maxHp > 0 ? core.hp / core.maxHp : 0;
+    const barW = sr * 2.2;
+    const barH = Math.max(6, sr * 0.16);
+    const bx = sx - barW / 2;
+    const by = sy - sr - barH - 12;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.fillRect(bx, by, barW, barH);
+    ctx.fillStyle = hpRatio > 0.45 ? "#4dd7a8" : hpRatio > 0.2 ? "#ffd166" : "#ff6b6b";
+    ctx.fillRect(bx, by, barW * clamp(hpRatio, 0, 1), barH);
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, barW, barH);
   }
 
   function drawPowerups() {
@@ -1697,6 +2299,7 @@ input[type="text"] {
     drawBackground();
     if (!state.player) return;
     drawPellets();
+    drawDefenseCore();
     drawPowerups();
     drawBots();
     if (isCoopMode()) {
@@ -1722,6 +2325,7 @@ input[type="text"] {
           handlePelletEats(dt);
           handleCoopPelletEatsHost();
           handlePowerups(dt);
+          handleDefenseCore(dt);
           handleBotVsCoopHost();
           modeLogic(dt);
           sendCoopSnapshot(dt);
@@ -1744,6 +2348,7 @@ input[type="text"] {
         spawnSystems(dt);
         handlePelletEats(dt);
         handlePowerups(dt);
+        handleDefenseCore(dt);
         handleBotVsPlayer();
         if (state.running) {
           modeLogic(dt);
@@ -1759,6 +2364,16 @@ input[type="text"] {
 
   window.addEventListener("resize", resizeCanvas);
   window.addEventListener("resize", detectMobileControls);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && state.running && !state.pauseMenuOpen) {
+      openPauseMenu();
+    }
+  });
+  window.addEventListener("blur", () => {
+    if (state.running && !state.pauseMenuOpen) {
+      openPauseMenu();
+    }
+  });
 
   window.addEventListener("mousemove", (event) => {
     state.mouse.x = event.clientX;
@@ -1816,23 +2431,54 @@ input[type="text"] {
     triggerEjectMassAction();
   });
 
+  mobileStun.addEventListener("touchstart", (event) => {
+    activateStunBooster();
+    event.preventDefault();
+  }, { passive: false });
+
+  mobileStun.addEventListener("click", () => {
+    activateStunBooster();
+  });
+
+  mobileSpeed.addEventListener("touchstart", (event) => {
+    activateSpeedBooster();
+    event.preventDefault();
+  }, { passive: false });
+
+  mobileSpeed.addEventListener("click", () => {
+    activateSpeedBooster();
+  });
+
+  mobileDash.addEventListener("touchstart", (event) => {
+    state.boostTimer = Math.max(state.boostTimer, 1.2);
+    event.preventDefault();
+  }, { passive: false });
+
+  mobileDash.addEventListener("click", () => {
+    state.boostTimer = Math.max(state.boostTimer, 1.2);
+  });
+
   window.addEventListener("keydown", (event) => {
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
 
     if (key === "p") {
       if (state.running) {
-        state.paused = !state.paused;
-        updateHud();
+        if (state.pauseMenuOpen) {
+          continueFromPauseMenu();
+        } else {
+          openPauseMenu();
+        }
       }
       return;
     }
 
-    if (key === "q") {
+    if (key === "q" || key === "й") {
       triggerEjectMassAction();
       return;
     }
 
     if (key === "Shift") {
+      if (state.pauseMenuOpen) return;
       state.boostTimer = Math.max(state.boostTimer, 1.2);
     }
 
@@ -1862,10 +2508,26 @@ input[type="text"] {
   playButton.addEventListener("click", beginGame);
   retryButton.addEventListener("click", beginGame);
 
+  openBoosterShopButton.addEventListener("click", () => {
+    const isOpen = boosterPanel.style.display === "block";
+    boosterPanel.style.display = isOpen ? "none" : "block";
+    updateBoosterPanel();
+  });
+
+  buyStunButton.addEventListener("click", () => buyBooster("stun", 1500, 3));
+  buySpeedButton.addEventListener("click", () => buyBooster("speed", 1500, 2));
+  buyMassButton.addEventListener("click", () => buyBooster("mass", 2000, 1));
+  pauseExitButton.addEventListener("click", openPauseMenu);
+  pauseContinueButton.addEventListener("click", continueFromPauseMenu);
+  pauseExitMenuButton.addEventListener("click", exitFromPauseMenu);
+
   backMenuButton.addEventListener("click", () => {
     state.running = false;
     state.paused = false;
+    state.pauseMenuOpen = false;
+    state.coopLocalPaused = false;
     gameOverPanel.style.display = "none";
+    pauseMenu.style.display = "none";
     menu.style.display = "grid";
     updateHud();
   });
@@ -1878,7 +2540,7 @@ input[type="text"] {
       return;
     }
     state.clearBestClickTimer = setTimeout(() => {
-      state.bestScores = { classic: 0, survival: 0, time_attack: 0, beer_party: 0, coop_online: 0 };
+      state.bestScores = { classic: 0, survival: 0, time_attack: 0, beer_party: 0, beer_defense: 0, coop_online: 0 };
       saveBestScores();
       updateHud();
       state.clearBestClickTimer = null;
