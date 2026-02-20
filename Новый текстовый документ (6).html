@@ -179,6 +179,42 @@ canvas {
   display: none;
 }
 
+#defenseHealButton {
+  position: fixed;
+  left: 160px;
+  bottom: 38px;
+  z-index: 9;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #082018;
+  background: linear-gradient(135deg, #9ef8dd, #4dd7a8);
+  display: none;
+}
+
+#defenseHealButton.cooldown {
+  color: var(--text);
+  background: rgba(8, 19, 33, 0.78);
+  cursor: default;
+}
+
+#defenseHintBanner {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 9;
+  max-width: 340px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: rgba(8, 19, 33, 0.82);
+  display: none;
+}
+
 #menu,
 #gameOver {
   position: fixed;
@@ -410,6 +446,11 @@ input[type="text"] {
     font-size: 14px;
   }
 
+  #defenseHealButton {
+    left: 136px;
+    bottom: 26px;
+  }
+
   .mobileSkill {
     width: 66px;
     height: 66px;
@@ -444,6 +485,8 @@ input[type="text"] {
   <button id="mobileEject" type="button">Q / Eject</button>
 </div>
 <button id="pauseExitButton" type="button">Пауза / В меню</button>
+<button id="defenseHealButton" type="button">Хил</button>
+<div id="defenseHintBanner">Нажмите на колёсико для хила ядра. Находитесь внутри ядра чтобы его хилить</div>
 
 <div id="hud" aria-live="polite">
   <div class="hud-card">
@@ -655,6 +698,8 @@ input[type="text"] {
   const bestValue = document.getElementById("bestValue");
   const statusLine = document.getElementById("statusLine");
   const pauseExitButton = document.getElementById("pauseExitButton");
+  const defenseHealButton = document.getElementById("defenseHealButton");
+  const defenseHintBanner = document.getElementById("defenseHintBanner");
   const gameOverTitle = document.getElementById("gameOverTitle");
   const gameOverText = document.getElementById("gameOverText");
   const COOP_WS_URL = "wss://romanio-production.up.railway.app";
@@ -760,7 +805,9 @@ input[type="text"] {
       botSpawnTimer: 0,
       wave: 1,
       phase: "wave",
-      phaseTimer: 0
+      phaseTimer: 0,
+      healCooldown: 0,
+      hintTimer: 0
     },
     network: {
       ws: null,
@@ -1076,6 +1123,7 @@ input[type="text"] {
     statusLine.textContent = `Статус: ${parts.join(" | ")}`;
     updateBoosterPanel();
     updateJoystickVisibility();
+    updateDefenseHintBanner();
   }
 
   function updateJoystickVisibility() {
@@ -1083,6 +1131,7 @@ input[type="text"] {
     joystick.style.display = state.isMobile && show ? "block" : "none";
     mobileActions.style.display = show ? "flex" : "none";
     pauseExitButton.style.display = state.running && !state.gameOver ? "block" : "none";
+    updateDefenseHealButton();
     updateMobileSkillButtons();
     if (!show) {
       resetJoystick();
@@ -1097,6 +1146,60 @@ input[type="text"] {
     mobileEject.style.display = show && state.isMobile ? "block" : "none";
     mobileStun.textContent = `STUN ${state.boosters.stun}`;
     mobileSpeed.textContent = `SPEED ${state.boosters.speed}`;
+  }
+
+  function isPlayerInsideDefenseCore() {
+    const core = state.defense.core;
+    const player = state.player;
+    if (!core || !player) return false;
+    return distance(player, core) < player.radius + core.radius;
+  }
+
+  function canUseDefenseHeal() {
+    if (state.selectedMode !== "beer_defense" || !state.running || state.gameOver || state.pauseMenuOpen) return false;
+    if (!isPlayerInsideDefenseCore()) return false;
+    if (state.defense.healCooldown > 0) return false;
+    return true;
+  }
+
+  function canHealDefenseCore() {
+    if (!state.isMobile) return false;
+    return canUseDefenseHeal();
+  }
+
+  function updateDefenseHealButton() {
+    if (!state.isMobile || state.selectedMode !== "beer_defense" || !state.running || state.gameOver || state.pauseMenuOpen) {
+      defenseHealButton.style.display = "none";
+      defenseHealButton.classList.remove("cooldown");
+      defenseHealButton.textContent = "Хил";
+      return;
+    }
+    if (state.defense.healCooldown > 0) {
+      defenseHealButton.style.display = "block";
+      defenseHealButton.classList.add("cooldown");
+      defenseHealButton.textContent = `Хил ${state.defense.healCooldown.toFixed(1)}с`;
+      return;
+    }
+    if (isPlayerInsideDefenseCore()) {
+      defenseHealButton.style.display = "block";
+      defenseHealButton.classList.remove("cooldown");
+      defenseHealButton.textContent = "Хил";
+      return;
+    }
+    defenseHealButton.style.display = "none";
+  }
+
+  function updateDefenseHintBanner() {
+    const show = !state.isMobile && state.selectedMode === "beer_defense" && state.running && !state.gameOver && !state.pauseMenuOpen && state.defense.hintTimer > 0;
+    defenseHintBanner.style.display = show ? "block" : "none";
+  }
+
+  function triggerDefenseHeal() {
+    if (!canUseDefenseHeal()) return;
+    const core = state.defense.core;
+    core.hp = Math.min(core.maxHp, core.hp + 5);
+    state.defense.healCooldown = 2;
+    updateHud();
   }
 
   function detectMobileControls() {
@@ -1376,6 +1479,8 @@ input[type="text"] {
     state.defense.wave = 1;
     state.defense.phase = "wave";
     state.defense.phaseTimer = 0;
+    state.defense.healCooldown = 0;
+    state.defense.hintTimer = 0;
 
     if (state.boosters.mass > 0) {
       state.player.radius *= 1.5;
@@ -1391,6 +1496,9 @@ input[type="text"] {
         hp: 1000,
         maxHp: 1000
       };
+      if (!state.isMobile) {
+        state.defense.hintTimer = 20;
+      }
     }
 
     if (!isCoopMode() || isCoopHost()) {
@@ -1629,7 +1737,7 @@ input[type="text"] {
       return;
     }
 
-    if (!state.isMobile && state.desktopPositionLock.enabled) {
+    if (!state.isMobile && state.desktopPositionLock.enabled && state.selectedMode !== "beer_defense") {
       player.x = state.desktopPositionLock.x;
       player.y = state.desktopPositionLock.y;
       player.vx = 0;
@@ -1948,6 +2056,9 @@ input[type="text"] {
 
   function modeLogic(dt) {
     const mode = MODES[state.selectedMode];
+
+    state.defense.healCooldown = Math.max(0, state.defense.healCooldown - dt);
+    state.defense.hintTimer = Math.max(0, state.defense.hintTimer - dt);
 
     if (state.selectedMode === "beer_defense") {
       const waveParams = getDefenseWaveParams(state.defense.wave);
@@ -2383,6 +2494,11 @@ input[type="text"] {
 
   canvas.addEventListener("mousedown", (event) => {
     if (event.button !== 1 || state.isMobile || !state.player) return;
+    if (state.selectedMode === "beer_defense") {
+      event.preventDefault();
+      triggerDefenseHeal();
+      return;
+    }
     event.preventDefault();
     state.desktopPositionLock.enabled = !state.desktopPositionLock.enabled;
     if (state.desktopPositionLock.enabled) {
@@ -2413,14 +2529,26 @@ input[type="text"] {
   joystick.addEventListener("touchend", (event) => {
     for (const t of event.changedTouches) {
       if (t.identifier === state.joystick.touchId) {
-        resetJoystick();
+        if (state.selectedMode === "beer_defense" && state.isMobile && state.running && !state.pauseMenuOpen) {
+          state.joystick.touchId = null;
+          state.joystick.active = true;
+        } else {
+          resetJoystick();
+        }
         event.preventDefault();
         break;
       }
     }
   }, { passive: false });
 
-  joystick.addEventListener("touchcancel", resetJoystick, { passive: true });
+  joystick.addEventListener("touchcancel", () => {
+    if (state.selectedMode === "beer_defense" && state.isMobile && state.running && !state.pauseMenuOpen) {
+      state.joystick.touchId = null;
+      state.joystick.active = true;
+      return;
+    }
+    resetJoystick();
+  }, { passive: true });
 
   mobileEject.addEventListener("touchstart", (event) => {
     triggerEjectMassAction();
@@ -2456,6 +2584,15 @@ input[type="text"] {
 
   mobileDash.addEventListener("click", () => {
     state.boostTimer = Math.max(state.boostTimer, 1.2);
+  });
+
+  defenseHealButton.addEventListener("touchstart", (event) => {
+    triggerDefenseHeal();
+    event.preventDefault();
+  }, { passive: false });
+
+  defenseHealButton.addEventListener("click", () => {
+    triggerDefenseHeal();
   });
 
   window.addEventListener("keydown", (event) => {
